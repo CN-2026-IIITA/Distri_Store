@@ -192,4 +192,23 @@ export async function fetchChatMessages(peerId) {
   return data
 }
 
+// ── Phase 24C: Selective file sharing ─────────────────────────
+
+export async function shareFiles(toPeerId, fileHashes, note = '') {
+  const { data } = await api.post('/share', {
+    to_peer_id: toPeerId, file_hashes: fileHashes, note,
+  })
+  return data
+}
+
+export async function fetchShares() {
+  const { data } = await api.get('/shares')
+  return data.shares || []
+}
+
+export async function deleteShare(shareId) {
+  const { data } = await api.delete(`/shares/${shareId}`)
+  return data
+}
+
 export default api

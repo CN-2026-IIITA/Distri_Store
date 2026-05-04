@@ -4,12 +4,13 @@
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Globe, Clock, Database, HardDrive, Folder, FileText, Inbox, Eye, ArrowDownToLine, KeyRound } from 'lucide-react'
+import { Globe, Clock, Database, HardDrive, Folder, FileText, Inbox, Eye, ArrowDownToLine, KeyRound, Send, CheckSquare, Square } from 'lucide-react'
 import useNetworkStore from '../store/useNetworkStore'
 import StatCard from '../components/ui/StatCard'
 import Card from '../components/ui/Card'
 import CopyButton from '../components/ui/CopyButton'
 import PreviewModal, { isPreviewable } from '../components/ui/PreviewModal'
+import ShareModal from '../components/ui/ShareModal'
 import NetworkTopology from '../components/network/NetworkTopology'
 import PeerTable from '../components/network/PeerTable'
 import TransferSpeedChart from '../components/network/TransferSpeedChart'
@@ -37,6 +38,26 @@ export default function DashboardPage() {
   const [previewFile, setPreviewFile] = useState(null)
   const [previewPassword, setPreviewPassword] = useState('')
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(null)
+
+  // Phase 24C: multi-select + share modal state
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedHashes, setSelectedHashes] = useState(() => new Set())
+  const [showShareModal, setShowShareModal] = useState(false)
+
+  const toggleSelect = (hash) => {
+    setSelectedHashes((prev) => {
+      const next = new Set(prev)
+      if (next.has(hash)) next.delete(hash); else next.add(hash)
+      return next
+    })
+  }
+
+  const exitSelectMode = () => {
+    setSelectMode(false)
+    setSelectedHashes(new Set())
+  }
+
+  const filesToShare = files.filter((f) => selectedHashes.has(f.file_hash))
 
   const handleSelectFile = (hash) => {
     navigate(`/download?hash=${hash}`)
@@ -80,46 +101,101 @@ export default function DashboardPage() {
             <p>No files stored yet</p>
           </div>
         ) : (
-          <div className="file-list">
-            {files.map((f, i) => (
-              <div className="file-item" key={i}>
-                <div className="file-info">
-                  <div className="file-icon"><FileText size={18} /></div>
-                  <div>
-                    <div className="file-name">{f.filename}</div>
-                    <div className="file-meta">
-                      {formatBytes(f.size)} · {f.chunks} chunks
-                      {f.merkle_root ? ` · Merkle: ${f.merkle_root.slice(0, 12)}...` : ''}
+          <>
+            {/* Select-mode toolbar */}
+            <div className="files-toolbar">
+              {!selectMode ? (
+                <button className="btn-sm" onClick={() => setSelectMode(true)}>
+                  <CheckSquare size={14} /> Select to share
+                </button>
+              ) : (
+                <>
+                  <span className="files-toolbar-count">
+                    {selectedHashes.size} selected
+                  </span>
+                  <button
+                    className="btn btn-primary"
+                    style={{ padding: '6px 14px', fontSize: 13 }}
+                    onClick={() => setShowShareModal(true)}
+                    disabled={selectedHashes.size === 0}
+                  >
+                    <Send size={14} /> Share {selectedHashes.size > 0 ? `(${selectedHashes.size})` : ''}
+                  </button>
+                  <button className="btn-sm" onClick={exitSelectMode}>
+                    Cancel
+                  </button>
+                </>
+              )}
+            </div>
+
+            <div className="file-list">
+              {files.map((f, i) => {
+                const checked = selectedHashes.has(f.file_hash)
+                return (
+                  <div
+                    className={`file-item ${selectMode ? 'file-item-selectable' : ''} ${checked ? 'file-item-selected' : ''}`}
+                    key={i}
+                    onClick={selectMode ? () => toggleSelect(f.file_hash) : undefined}
+                  >
+                    <div className="file-info">
+                      {selectMode && (
+                        <button
+                          className="file-checkbox"
+                          onClick={(e) => { e.stopPropagation(); toggleSelect(f.file_hash) }}
+                          title={checked ? 'Unselect' : 'Select'}
+                        >
+                          {checked ? <CheckSquare size={20} /> : <Square size={20} />}
+                        </button>
+                      )}
+                      <div className="file-icon"><FileText size={18} /></div>
+                      <div>
+                        <div className="file-name">{f.filename}</div>
+                        <div className="file-meta">
+                          {formatBytes(f.size)} · {f.chunks} chunks
+                          {f.merkle_root ? ` · Merkle: ${f.merkle_root.slice(0, 12)}...` : ''}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-                <div className="file-actions">
-                  <div className="file-hash">{f.file_hash?.slice(0, 20)}...</div>
-                  <div className="file-buttons">
-                    <CopyButton text={f.file_hash} label="Copy Hash" />
-                    {isPreviewable(f.filename) && (
-                      <button
-                        className="btn-copy btn-preview"
-                        onClick={() => handlePreview(f)}
-                        title="Preview this file"
-                      >
-                        <Eye size={14} /> Preview
-                      </button>
+                    {!selectMode && (
+                      <div className="file-actions">
+                        <div className="file-hash">{f.file_hash?.slice(0, 20)}...</div>
+                        <div className="file-buttons">
+                          <CopyButton text={f.file_hash} label="Copy Hash" />
+                          {isPreviewable(f.filename) && (
+                            <button
+                              className="btn-copy btn-preview"
+                              onClick={() => handlePreview(f)}
+                              title="Preview this file"
+                            >
+                              <Eye size={14} /> Preview
+                            </button>
+                          )}
+                          <button
+                            className="btn-copy btn-dl"
+                            onClick={() => handleSelectFile(f.file_hash)}
+                            title="Download this file"
+                          >
+                            <ArrowDownToLine size={14} /> Download
+                          </button>
+                        </div>
+                      </div>
                     )}
-                    <button
-                      className="btn-copy btn-dl"
-                      onClick={() => handleSelectFile(f.file_hash)}
-                      title="Download this file"
-                    >
-                      <ArrowDownToLine size={14} /> Download
-                    </button>
                   </div>
-                </div>
-              </div>
-            ))}
-          </div>
+                )
+              })}
+            </div>
+          </>
         )}
       </Card>
+
+      {/* Phase 24C: Share-to-peer modal */}
+      {showShareModal && (
+        <ShareModal
+          files={filesToShare}
+          onClose={() => setShowShareModal(false)}
+          onShared={() => { exitSelectMode(); }}
+        />
+      )}
 
       {/* Password Prompt for encrypted preview */}
       {showPasswordPrompt && (

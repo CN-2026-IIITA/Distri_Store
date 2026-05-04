@@ -1095,3 +1095,154 @@ async def peer_chat_message(payload: dict):
 
     msg = await _local_store.db.append_chat_message(sender_id, from_self=False, body=body)
     return {"status": "received", "message": msg}
+
+
+# ── Phase 24C: File sharing (selective download by peer ref) ──────────
+#
+# Sender POSTs /share with {to_peer_id, file_hashes, note}. The backend
+# resolves each hash to its manifest (filename, size), then POSTs to the
+# recipient's /peer/share/notify which inserts one row per file into the
+# recipient's file_shares inbox. Recipient's UI lists the inbox and lets
+# them download whichever ones they want via the existing /download flow.
+#
+# No accept/reject — receiving the share is just metadata; the recipient
+# only pays bandwidth for the specific files they choose to pull.
+
+@router.post("/share")
+async def send_share(payload: dict):
+    """Share a list of file hashes with a peer (requires an accepted chat thread)."""
+    if not _node or not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    to_peer = (payload or {}).get("to_peer_id", "").strip()
+    file_hashes = (payload or {}).get("file_hashes") or []
+    note = (payload or {}).get("note", "")
+    if not to_peer:
+        raise HTTPException(400, "to_peer_id required")
+    if to_peer == _node.state.node_id:
+        raise HTTPException(400, "Cannot share with yourself")
+    if not isinstance(file_hashes, list) or not file_hashes:
+        raise HTTPException(400, "file_hashes must be a non-empty list")
+
+    # Phase 24C+: file sharing piggy-backs on the chat invite as the consent gate
+    thread = await _local_store.db.get_chat_thread(to_peer)
+    if not thread or thread["status"] != "accepted":
+        raise HTTPException(
+            403,
+            "You can only share files with peers you have an accepted chat with. "
+            "Send a chat invite first.",
+        )
+
+    target = await _resolve_peer_endpoint(to_peer)
+    if not target:
+        raise HTTPException(404, f"Peer {to_peer[:12]}... is not currently visible")
+    ip, api_port, _ = target
+
+    # Look up each manifest locally to capture filename + size for the share record
+    files_payload = []
+    missing = []
+    for fh in file_hashes:
+        m = _local_store.load_manifest(fh)
+        if not m:
+            missing.append(fh)
+            continue
+        files_payload.append({
+            "file_hash": fh,
+            "filename": m.get("original_filename", ""),
+            "size": m.get("original_size", 0),
+        })
+    if missing:
+        raise HTTPException(404, f"Unknown file hash(es): {', '.join(h[:12] + '...' for h in missing)}")
+
+    # Notify the recipient
+    body = {**_self_ident(), "files": files_payload, "note": note}
+    try:
+        async with _httpx_chat.AsyncClient(timeout=CHAT_PEER_TIMEOUT) as client:
+            r = await client.post(f"http://{ip}:{api_port}/peer/share/notify", json=body)
+        if r.status_code >= 400:
+            raise HTTPException(502, f"Peer rejected share: HTTP {r.status_code}")
+    except _httpx_chat.HTTPError as e:
+        raise HTTPException(502, f"Failed to reach peer: {e}")
+
+    logger.info(
+        f"Shared {len(files_payload)} file(s) with {to_peer[:12]}..."
+    )
+    return {"status": "sent", "shared_count": len(files_payload)}
+
+
+@router.get("/shares")
+async def list_shares():
+    """Return the inbox of file references shared with this node by other peers."""
+    if not _node or not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    rows = await _local_store.db.get_all_file_shares()
+    alive = await _node.state.get_alive_peers()
+    alive_ids = set(alive.keys())
+
+    # Detect already-downloaded files by checking the local manifest store
+    local_hashes = {
+        m.get("file_hash") for m in _local_store.get_all_manifests()
+    }
+
+    out = []
+    for r in rows:
+        out.append({
+            **r,
+            "online": r["from_peer_id"] in alive_ids,
+            "downloaded": r["file_hash"] in local_hashes,
+        })
+    return {"shares": out}
+
+
+@router.delete("/shares/{share_id}")
+async def delete_share(share_id: int):
+    """Remove a share record from the inbox (does not delete the file itself)."""
+    if not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    ok = await _local_store.db.delete_file_share(share_id)
+    if not ok:
+        raise HTTPException(404, "Share not found")
+    return {"status": "deleted"}
+
+
+@router.post("/peer/share/notify")
+async def peer_share_notify(payload: dict):
+    """Receive a file-share notification from another peer.
+
+    Gated by chat consent: we only accept shares from peers we have an
+    accepted chat thread with. This makes file sharing piggy-back on the
+    same invite handshake as chats — one consent covers both.
+    """
+    if not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    sender_id = (payload or {}).get("from_node_id", "").strip()
+    sender_name = (payload or {}).get("from_name", "").strip()
+    files = (payload or {}).get("files") or []
+    note = (payload or {}).get("note", "")
+    if not sender_id or not files:
+        raise HTTPException(400, "from_node_id and files required")
+
+    # Phase 24C+: only accept shares from peers we have an accepted chat with
+    thread = await _local_store.db.get_chat_thread(sender_id)
+    if not thread or thread["status"] != "accepted":
+        # Refuse uninvited shares — sender must initiate a chat first
+        raise HTTPException(403, "No accepted chat thread with this peer")
+
+    inserted = []
+    for f in files:
+        fh = (f.get("file_hash") or "").strip()
+        if not fh:
+            continue
+        rec = await _local_store.db.insert_file_share(
+            from_peer_id=sender_id,
+            from_peer_name=sender_name,
+            file_hash=fh,
+            filename=f.get("filename", ""),
+            size=int(f.get("size", 0) or 0),
+            note=note,
+        )
+        inserted.append(rec["id"])
+
+    logger.info(
+        f"Received {len(inserted)} share(s) from {sender_name} ({sender_id[:12]}...)"
+    )
+    return {"status": "received", "inserted_ids": inserted}

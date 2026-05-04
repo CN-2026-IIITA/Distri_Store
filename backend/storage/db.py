@@ -88,6 +88,23 @@ class NodeDatabase:
             "CREATE INDEX IF NOT EXISTS idx_chat_messages_peer "
             "ON chat_messages(peer_id, sent_at)"
         )
+        # Phase 24C: file shares — recipient-side inbox of file refs sent by peers
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS file_shares (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                from_peer_id    TEXT NOT NULL,
+                from_peer_name  TEXT DEFAULT '',
+                file_hash       TEXT NOT NULL,
+                filename        TEXT DEFAULT '',
+                size            INTEGER DEFAULT 0,
+                note            TEXT DEFAULT '',
+                sent_at         REAL NOT NULL
+            )
+        """)
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_file_shares_peer "
+            "ON file_shares(from_peer_id, sent_at DESC)"
+        )
         # Phase 18: migrate existing tables that lack the compression column
         # Phase 23: migrate existing tables that lack erasure-mode columns
         for ddl in (
@@ -265,6 +282,44 @@ class NodeDatabase:
         )
         return [dict(row) for row in cur.fetchall()]
 
+    # ── Phase 24C: file share inbox ─────────────────────────────────
+
+    def _insert_file_share_sync(
+        self, from_peer_id: str, from_peer_name: str,
+        file_hash: str, filename: str, size: int, note: str = "",
+    ) -> dict:
+        now = time.time()
+        cur = self._conn.execute(
+            """INSERT INTO file_shares
+               (from_peer_id, from_peer_name, file_hash, filename, size, note, sent_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (from_peer_id, from_peer_name, file_hash, filename, size, note, now),
+        )
+        self._conn.commit()
+        return {
+            "id": cur.lastrowid,
+            "from_peer_id": from_peer_id,
+            "from_peer_name": from_peer_name,
+            "file_hash": file_hash,
+            "filename": filename,
+            "size": size,
+            "note": note,
+            "sent_at": now,
+        }
+
+    def _get_all_file_shares_sync(self) -> list[dict]:
+        cur = self._conn.execute(
+            "SELECT * FROM file_shares ORDER BY sent_at DESC"
+        )
+        return [dict(row) for row in cur.fetchall()]
+
+    def _delete_file_share_sync(self, share_id: int) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM file_shares WHERE id = ?", (share_id,)
+        )
+        self._conn.commit()
+        return cur.rowcount > 0
+
     # ── Async wrappers ─────────────────────────────────────────────
 
     async def save_manifest(self, file_hash: str, manifest_dict: dict) -> None:
@@ -306,6 +361,21 @@ class NodeDatabase:
 
     async def get_chat_messages(self, peer_id: str, limit: int = 500) -> list[dict]:
         return await asyncio.to_thread(self._get_chat_messages_sync, peer_id, limit)
+
+    # Phase 24C: file-share async wrappers
+    async def insert_file_share(self, from_peer_id: str, from_peer_name: str,
+                                 file_hash: str, filename: str, size: int,
+                                 note: str = "") -> dict:
+        return await asyncio.to_thread(
+            self._insert_file_share_sync,
+            from_peer_id, from_peer_name, file_hash, filename, size, note,
+        )
+
+    async def get_all_file_shares(self) -> list[dict]:
+        return await asyncio.to_thread(self._get_all_file_shares_sync)
+
+    async def delete_file_share(self, share_id: int) -> bool:
+        return await asyncio.to_thread(self._delete_file_share_sync, share_id)
 
     def close(self) -> None:
         self._conn.close()

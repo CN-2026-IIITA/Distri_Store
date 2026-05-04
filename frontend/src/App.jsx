@@ -22,6 +22,7 @@ import UploadPage from './pages/UploadPage'
 import DownloadPage from './pages/DownloadPage'
 import SettingsPage from './pages/SettingsPage'
 import ChatsPage from './pages/ChatsPage'
+import SharedWithMePage from './pages/SharedWithMePage'
 import ChatDrawer from './components/network/ChatDrawer'
 
 function AppShell() {
@@ -44,6 +45,7 @@ function AppShell() {
             <Route path="/upload" element={<UploadPage />} />
             <Route path="/download" element={<DownloadPage />} />
             <Route path="/chats" element={<ChatsPage />} />
+            <Route path="/shared" element={<SharedWithMePage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </main>

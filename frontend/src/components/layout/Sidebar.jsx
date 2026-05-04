@@ -3,13 +3,14 @@
  */
 
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Upload, Download, MessageSquare, Settings } from 'lucide-react'
+import { LayoutDashboard, Upload, Download, MessageSquare, Inbox, Settings } from 'lucide-react'
 import clsx from 'clsx'
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/upload', label: 'Upload', icon: Upload },
   { to: '/download', label: 'Download', icon: Download },
+  { to: '/shared', label: 'Shared with me', icon: Inbox },
   { to: '/chats', label: 'Chats', icon: MessageSquare },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]
