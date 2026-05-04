@@ -26,6 +26,7 @@ class PeerInfo:
     latency: float = 0.0      # round-trip ms to this peer
     health_score: float = 0.0 # computed health score from HELLO
     api_port: int = 8888      # HTTP API port for cross-node requests
+    public_key: str = ""      # Phase 25A: hex-encoded X25519 pubkey for onion routing
 
     def is_alive(self, timeout: int = 15) -> bool:
         """Check if peer has been seen within the timeout window."""
@@ -44,6 +45,9 @@ class NodeState:
         self.name: str = name
         self.tcp_port: int = 0  # Set dynamically by ConnectionManager after OS allocation
         self.start_time: float = time.time()
+        # Phase 25A: per-node X25519 keypair for onion routing (set via set_identity)
+        self.onion_private_key = None  # nacl.public.PrivateKey
+        self.public_key_hex: str = ""
 
         # Peer registry: node_id -> PeerInfo
         self._peers: Dict[str, PeerInfo] = {}
@@ -65,6 +69,12 @@ class NodeState:
     def set_database(self, db) -> None:
         """Attach a NodeDatabase instance for persistent peer storage."""
         self._db = db
+
+    def set_identity(self, private_key, public_key_hex: str) -> None:
+        """Phase 25A: install the persistent onion-routing keypair on this node."""
+        self.onion_private_key = private_key
+        self.public_key_hex = public_key_hex
+        logger.info(f"Onion identity installed (pub={public_key_hex[:16]}...)")
 
     async def load_peers_from_db(self) -> None:
         """Load historical peers from SQLite into the in-memory peer table."""
@@ -226,6 +236,8 @@ class NodeState:
                     "free_space": p.free_space,
                     "uptime": p.uptime,
                     "api_port": p.api_port,
+                    "public_key": p.public_key,  # Phase 25A: onion-routing pubkey
+                    "alive": p.is_alive(),
                 }
                 for nid, p in peers.items()
             },

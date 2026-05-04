@@ -48,12 +48,14 @@ def _init():
     name = os.environ.get("DS_NAME", config.node.name)
     tcp_port = int(os.environ.get("DS_TCP_PORT", config.network.tcp_port))
     udp_port = int(os.environ.get("DS_UDP_PORT", config.network.discovery_port))
+    storage_dir = os.environ.get("DS_STORAGE_DIR", config.storage.chunk_dir)
 
     if name != config.node.name:
         config.node.name = name
         config.node.node_id = _generate_node_id()
     config.network.tcp_port = tcp_port
     config.network.discovery_port = udp_port
+    config.storage.chunk_dir = storage_dir
 
     setup_logging(config.logging.level, config.logging.file)
 
@@ -72,6 +74,10 @@ async def lifespan(app):
     # Phase 16: Wire SQLite persistence into NodeState
     _node.state.set_database(_store.db)
     await _node.state.load_peers_from_db()
+    # Phase 25A: load (or generate on first boot) the onion-routing keypair
+    from backend.network.identity import load_or_create_keypair
+    _priv, _pub = load_or_create_keypair(_store.db._conn)
+    _node.state.set_identity(_priv, _pub.encode().hex())
     await _node.start(_store)
     logger.info("DistriStore node started alongside API server")
     yield

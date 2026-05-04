@@ -155,4 +155,82 @@ export async function clearCompletedDownloads() {
   return data
 }
 
+// ── Phase 24A: 1:1 Chats (invite + accept + send) ─────────────
+
+export async function fetchChats() {
+  const { data } = await api.get('/chats')
+  return data
+}
+
+export async function inviteChat(peerId) {
+  const { data } = await api.post('/chats/invite', { peer_id: peerId })
+  return data
+}
+
+export async function acceptChat(peerId) {
+  const { data } = await api.post(`/chats/${peerId}/accept`)
+  return data
+}
+
+export async function rejectChat(peerId) {
+  const { data } = await api.post(`/chats/${peerId}/reject`)
+  return data
+}
+
+export async function deleteChat(peerId) {
+  const { data } = await api.delete(`/chats/${peerId}`)
+  return data
+}
+
+export async function sendChatMessage(peerId, text) {
+  const { data } = await api.post(`/chats/${peerId}/messages`, { text })
+  return data
+}
+
+export async function fetchChatMessages(peerId) {
+  const { data } = await api.get(`/chats/${peerId}/messages`)
+  return data
+}
+
+// ── Phase 24C: Selective file sharing ─────────────────────────
+
+export async function shareFiles(toPeerId, fileHashes, note = '') {
+  const { data } = await api.post('/share', {
+    to_peer_id: toPeerId, file_hashes: fileHashes, note,
+  })
+  return data
+}
+
+export async function fetchShares() {
+  const { data } = await api.get('/shares')
+  return data.shares || []
+}
+
+export async function deleteShare(shareId) {
+  const { data } = await api.delete(`/shares/${shareId}`)
+  return data
+}
+
+// ── Phase 25A: Onion-routing path inspection + delivery receipts ──
+
+export async function fetchDownloadPath(fileHash) {
+  const { data } = await api.get(`/download/${fileHash}/path`)
+  return data
+}
+
+export async function fetchSharePath(shareId) {
+  const { data } = await api.get(`/shares/${shareId}/path`)
+  return data
+}
+
+export async function ackShareDelivery(shareId) {
+  const { data } = await api.post(`/shares/${shareId}/ack`)
+  return data
+}
+
+export async function fetchShareReceipts() {
+  const { data } = await api.get('/share-receipts')
+  return data.receipts || []
+}
+
 export default api

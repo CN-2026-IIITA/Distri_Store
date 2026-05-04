@@ -122,6 +122,7 @@ class DiscoveryProtocol(asyncio.DatagramProtocol):
             uptime=msg.get("uptime", 0),
             health_score=health.get("health_score", 0),
             api_port=msg.get("api_port", 8888),
+            public_key=msg.get("public_key", ""),  # Phase 25A: onion-routing pubkey
         )
 
         logger.debug(
@@ -149,6 +150,8 @@ class DiscoveryProtocol(asyncio.DatagramProtocol):
             "uptime": self.state.uptime,
             "timestamp": time.time(),
             "health": health,
+            # Phase 25A: gossip our X25519 onion-routing pubkey (hex)
+            "public_key": getattr(self.state, 'public_key_hex', ''),
         }
         from backend.utils.config import get_config
         key = get_config().network.swarm_key.encode()

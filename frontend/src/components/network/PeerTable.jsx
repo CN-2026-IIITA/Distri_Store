@@ -45,10 +45,10 @@ export default function PeerTable() {
   ]
 
   return (
-    <Card title="Connected Peers" icon="👥" noPad>
+    <Card title="Connected Peers" icon={<Users size={18} />} noPad>
       {peerList.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">🔍</div>
+          <div className="empty-state-icon"><Users size={32} strokeWidth={1.5} /></div>
           <p>No peers connected yet</p>
         </div>
       ) : (

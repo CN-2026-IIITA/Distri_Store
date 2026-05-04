@@ -12,11 +12,13 @@ export default function Header() {
 
   return (
     <header className="header">
-      <Link to="/" className="header-brand" style={{ textDecoration: 'none' }}>
-        <div className="header-logo">🔗</div>
+      <Link to="/" className="header-brand">
+        <div className="header-logo">
+          <Activity size={19} strokeWidth={2.25} />
+        </div>
         <div>
           <div className="header-title">DistriStore</div>
-          <div className="header-subtitle">P2P DHT Storage · AES-256-GCM · Merkle Verified</div>
+          <div className="header-subtitle">Private distributed file network</div>
         </div>
       </Link>
       <div className="header-status">

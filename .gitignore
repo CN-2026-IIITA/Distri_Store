@@ -15,6 +15,7 @@ frontend/.eslintcache
 
 # Local Storage & DBs
 .storage/
+.storage_*/
 *.bin
 *.db
 *.sqlite3

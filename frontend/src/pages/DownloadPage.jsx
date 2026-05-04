@@ -4,13 +4,12 @@
  * Reads prefilled hash from URL query params (from dashboard file list clicks).
  */
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Download, Lock, Eye, Play, Pause, RefreshCw, CheckCircle, AlertCircle, Loader } from 'lucide-react'
+import { Download, Lock, Play, Pause, CheckCircle, AlertCircle, Loader } from 'lucide-react'
 import {
   downloadFile, triggerBlobDownload,
   startResumableDownload, pauseDownload, resumeDownload,
-  fetchDownloadProgress,
 } from '../api/client'
 import useNetworkStore from '../store/useNetworkStore'
 import Card from '../components/ui/Card'
@@ -29,7 +28,7 @@ function formatBytes(bytes) {
 
 export default function DownloadPage() {
   const [searchParams] = useSearchParams()
-  const [hash, setHash] = useState('')
+  const [hash, setHash] = useState(() => searchParams.get('hash') || '')
   const [password, setPassword] = useState('')
   const [downloading, setDownloading] = useState(false)
   const [error, setError] = useState(null)
@@ -41,17 +40,10 @@ export default function DownloadPage() {
 
   // Phase 21: Resumable download state
   const [starting, setStarting] = useState(false)
-  const [resumableInfo, setResumableInfo] = useState(null)
   const activeDownloads = useNetworkStore((s) => s.activeDownloads)
 
   // Track the current hash's download if it exists
   const currentDl = hash ? (activeDownloads || {})[hash] : null
-
-  // Prefill hash from URL params (e.g., /download?hash=abc123)
-  useEffect(() => {
-    const h = searchParams.get('hash')
-    if (h) setHash(h)
-  }, [searchParams])
 
   // ── Instant download (original) ──────────────────────────────
   const handleDownload = async () => {
@@ -73,8 +65,7 @@ export default function DownloadPage() {
     if (!hash) return
     setStarting(true); setError(null); setSuccess(false)
     try {
-      const result = await startResumableDownload(hash, password)
-      setResumableInfo(result.download)
+      await startResumableDownload(hash, password)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -134,13 +125,13 @@ export default function DownloadPage() {
           </div>
           <div className="download-actions">
             <Button variant="success" loading={downloading} disabled={!hash} onClick={handleDownload}>
-              ⬇️ Instant Download
+              Instant download
             </Button>
             <Button variant="primary" loading={starting} disabled={!hash} onClick={handleStartResumable}>
-              🔄 Resumable Download
+              Resumable download
             </Button>
             <Button variant="primary" disabled={!hash} onClick={handlePreview}>
-              👁️ Preview
+              Preview
             </Button>
           </div>
 
@@ -214,8 +205,8 @@ export default function DownloadPage() {
             </div>
           )}
 
-          {success && <div className="alert alert-success">✅ Downloaded successfully!</div>}
-          {error && <div className="alert alert-error">❌ {error}</div>}
+          {success && <div className="alert alert-success">Downloaded successfully.</div>}
+          {error && <div className="alert alert-error">{error}</div>}
         </div>
       </Card>
 

@@ -103,8 +103,9 @@ async def upload_file(
     if not _node or not _local_store:
         raise HTTPException(503, "Node not initialized")
 
-    from backend.file_engine.chunker import chunk_file, FileManifest, get_optimal_chunk_size
+    from backend.file_engine.chunker import chunk_file, FileManifest, ShardInfo, get_optimal_chunk_size
     from backend.strategies.replication import ReplicationEngine
+    from backend.utils.config import get_config as _get_cfg
 
     # Save uploaded file to temp location
     tmp_dir = tempfile.mkdtemp()
@@ -122,10 +123,41 @@ async def upload_file(
         pwd = password if password else None
         manifest, chunks = chunk_file(tmp_path, chunk_size=opt_chunk_size, password=pwd)
 
-        # Store all chunks locally
-        for info, data in zip(manifest.chunks, chunks):
-            _local_store.save_chunk(info.chunk_hash, data)
-            await _node.state.register_chunk(info.chunk_hash, info.chunk_hash)
+        # ── Phase 23: Reed-Solomon erasure coding (opt-in) ─────────
+        cfg = _get_cfg()
+        erasure_mode = cfg.replication.mode == "erasure"
+        shards_per_chunk = []  # parallel to manifest.chunks; populated only in erasure mode
+
+        if erasure_mode:
+            from backend.strategies.erasure import encode_chunk
+            k_data, n_total = cfg.replication.erasure_k, cfg.replication.erasure_n
+
+            for info, data in zip(manifest.chunks, chunks):
+                encoded = encode_chunk(data, chunk_index=info.index, k=k_data, n=n_total)
+                # Save each shard locally (storage is shard-keyed by SHA-256, same as chunks)
+                for s in encoded.shards:
+                    _local_store.save_chunk(s.shard_hash, s.data)
+                    await _node.state.register_chunk(s.shard_hash, s.shard_hash)
+                # Attach shard metadata so the downloader can find them
+                info.shards = [
+                    ShardInfo(shard_index=s.shard_index, shard_hash=s.shard_hash, size=s.size)
+                    for s in encoded.shards
+                ]
+                shards_per_chunk.append(encoded.shards)
+
+            manifest.replication_mode = "erasure"
+            manifest.erasure_k = k_data
+            manifest.erasure_n = n_total
+            logger.info(
+                f"Erasure-encoded {len(chunks)} chunks into "
+                f"{len(chunks) * n_total} shards (k={k_data}, n={n_total}, "
+                f"overhead={n_total/k_data:.2f}x)"
+            )
+        else:
+            # k-copy mode: store the whole encrypted chunks locally
+            for info, data in zip(manifest.chunks, chunks):
+                _local_store.save_chunk(info.chunk_hash, data)
+                await _node.state.register_chunk(info.chunk_hash, info.chunk_hash)
 
         # Save manifest
         _local_store.save_manifest(manifest.file_hash, manifest.to_dict())
@@ -137,7 +169,10 @@ async def upload_file(
             engine = ReplicationEngine(
                 _node.state, _node.conn_mgr, _routing, _local_store
             )
-            replicated = await engine.replicate_chunks(manifest, chunks)
+            if erasure_mode:
+                replicated = await engine.replicate_shards(manifest, shards_per_chunk)
+            else:
+                replicated = await engine.replicate_chunks(manifest, chunks)
 
         logger.info(f"Uploaded '{file.filename}': {len(chunks)} chunks, hash={manifest.file_hash[:16]}...")
 
@@ -207,41 +242,41 @@ async def download_file(
 
     manifest = FileManifest.from_dict(manifest_dict)
 
-    # ── Step 2: Load or fetch chunks ───────────────────────────────
+    # ── Step 2: Load or fetch chunks (Phase 25A: through onion circuits) ─
     chunks = []
-    peers = None  # Lazy-load peer list only if needed
+    paths_recorded: dict = {}  # target_hash -> [hop_ids..., holder_id]
+
+    async def _peer_fetch(target_hash: str):
+        return await _onion_fetch_chunk(target_hash, paths_recorded)
+
+    erasure_mode = manifest.replication_mode == "erasure"
 
     for info in manifest.chunks:
-        data = _local_store.load_chunk(info.chunk_hash)
-
-        if data is None:
-            # Not local — fetch from peers
-            if peers is None:
-                peers = await _node.state.get_alive_peers()
-
-            fetched = False
-            for nid, peer in peers.items():
-                chunk_url = f"http://{peer.ip}:{peer.api_port}/chunk/{info.chunk_hash}"
-                try:
-                    async with httpx.AsyncClient(timeout=30) as client:
-                        resp = await client.get(chunk_url)
-                    if resp.status_code == 200:
-                        data = resp.content
-                        # Cache chunk locally
-                        _local_store.save_chunk(info.chunk_hash, data)
-                        logger.debug(
-                            f"Fetched chunk {info.chunk_hash[:12]}... from {peer.name} ({peer.ip})"
-                        )
-                        fetched = True
-                        break
-                except Exception as e:
-                    logger.debug(f"Peer {peer.ip} chunk fetch failed: {e}")
-                    continue
-
-            if not fetched:
-                raise HTTPException(404, f"Chunk {info.chunk_hash[:16]}... not found on any node")
+        if erasure_mode and info.shards:
+            # Phase 23: reconstruct from any k of n Reed-Solomon shards
+            from backend.strategies.erasure import fetch_and_decode_chunk
+            try:
+                data = await fetch_and_decode_chunk(
+                    info, manifest.erasure_k, manifest.erasure_n,
+                    _local_store, _peer_fetch,
+                )
+            except ValueError as ve:
+                raise HTTPException(404, str(ve))
+        else:
+            # Whole-chunk path (k-copy mode)
+            data = _local_store.load_chunk(info.chunk_hash)
+            if data is None:
+                data = await _peer_fetch(info.chunk_hash)
+                if data is None:
+                    raise HTTPException(404, f"Chunk {info.chunk_hash[:16]}... not found on any node")
+                _local_store.save_chunk(info.chunk_hash, data)
+                logger.debug(f"Fetched chunk {info.chunk_hash[:12]}... via onion")
 
         chunks.append(data)
+
+    # Phase 25A: stash the path for this download in the in-memory map so the
+    # UI / share-receipt code can read it. Self-id excluded (the requester).
+    _record_download_path(file_hash, paths_recorded)
 
     # ── Step 3: Merge + decrypt to disk ────────────────────────────
     # Check if file is encrypted and password is needed
@@ -336,23 +371,35 @@ async def preview_file(
     if not media_type:
         media_type = "application/octet-stream"
 
-    # ── Chunk loader (local + peer fallback) ─────────────────────
+    # ── Chunk loader (local + onion-relayed peer fallback) ───────
+    erasure_mode = manifest.replication_mode == "erasure"
+    chunks_by_hash = {c.chunk_hash: c for c in manifest.chunks}
+    paths_recorded: dict = {}
+
+    async def _peer_fetch_one(target_hash: str):
+        return await _onion_fetch_chunk(target_hash, paths_recorded)
+
     async def load_chunk(chunk_hash: str) -> bytes:
+        # Erasure mode: reconstruct from any k of n shards.
+        if erasure_mode:
+            info = chunks_by_hash.get(chunk_hash)
+            if info is not None and info.shards:
+                from backend.strategies.erasure import fetch_and_decode_chunk
+                try:
+                    return await fetch_and_decode_chunk(
+                        info, manifest.erasure_k, manifest.erasure_n,
+                        _local_store, _peer_fetch_one,
+                    )
+                except ValueError as ve:
+                    raise HTTPException(404, str(ve))
+        # k-copy mode (or erasure manifest missing shard metadata): whole chunk
         data = _local_store.load_chunk(chunk_hash)
         if data is not None:
             return data
-        # Peer fallback
-        import httpx
-        peers = await _node.state.get_alive_peers()
-        for nid, peer in peers.items():
-            try:
-                async with httpx.AsyncClient(timeout=30) as client:
-                    resp = await client.get(f"http://{peer.ip}:{peer.api_port}/chunk/{chunk_hash}")
-                if resp.status_code == 200:
-                    _local_store.save_chunk(chunk_hash, resp.content)
-                    return resp.content
-            except Exception:
-                continue
+        data = await _peer_fetch_one(chunk_hash)
+        if data is not None:
+            _local_store.save_chunk(chunk_hash, data)
+            return data
         raise HTTPException(404, f"Chunk {chunk_hash[:16]}... not found")
 
     logger.info(
@@ -433,7 +480,13 @@ async def get_manifest(file_hash: str):
 
 @router.get("/chunk/{chunk_hash}")
 async def get_chunk(chunk_hash: str):
-    """Fetch a single raw chunk by its hash (for swarmed downloads)."""
+    """Fetch a single raw chunk by its hash (for swarmed downloads).
+
+    NOTE: this is the *direct* (no-onion) endpoint. With Phase 25A onion
+    routing enabled, the requester normally goes through /relay so that
+    intermediaries hop the request — direct calls still work for
+    backward compatibility and for cases where no relays are available.
+    """
     if not _local_store:
         raise HTTPException(503, "Node not initialized")
 
@@ -450,32 +503,132 @@ async def get_chunk(chunk_hash: str):
     )
 
 
+# ── Phase 25A: Onion-routed chunk fetches ──────────────────────────────
+#
+# Wire flow per chunk:
+#   requester → POST /relay (outermost) → hop1
+#   hop1     → peels its layer → POST /relay (inner) → hop2
+#   hop2     → peels its layer → POST /relay (inner) → holder
+#   holder   → peels innermost, executes the request locally,
+#              returns chunk bytes as the HTTP response
+#   bytes flow back through the open connection chain.
+#
+# Requesters use /relay even for "direct" fetches when onion routing is
+# enabled, so the holder cannot tell the requester apart from any other peer.
+
+from fastapi import Request as _FastAPIRequest
+
+
+@router.post("/relay")
+async def onion_relay(request: _FastAPIRequest):
+    """Peel one onion layer and either forward to the next hop or serve locally.
+
+    Receives the raw ciphertext as the request body. Decrypts with this
+    node's private X25519 key. If the layer carries a next hop, forwards
+    the inner ciphertext to that hop's /relay endpoint and streams the
+    response back. If this is the innermost layer (we are the holder),
+    executes the embedded request and returns the result bytes.
+    """
+    from fastapi.responses import Response
+    from backend.network.onion import peel_layer
+
+    if not _node or not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    if _node.state.onion_private_key is None:
+        raise HTTPException(503, "Onion identity not initialized")
+
+    body = await request.body()
+    if not body:
+        raise HTTPException(400, "Empty relay payload")
+
+    try:
+        layer = peel_layer(_node.state.onion_private_key, body)
+    except Exception as e:
+        # Wrong key, malformed, or tampered — silently drop with 400 so
+        # observers cannot distinguish failure modes.
+        logger.debug(f"Relay layer peel failed: {type(e).__name__}: {e}")
+        raise HTTPException(400, "Bad relay payload")
+
+    next_hop = layer.get("next_hop", "")
+
+    # ── Innermost: we are the holder — execute the embedded request ──
+    if not next_hop:
+        req = layer.get("request") or {}
+        op = req.get("op")
+        if op == "fetch_chunk":
+            target = req.get("chunk_hash", "")
+            data = _local_store.load_chunk(target)
+            if data is None:
+                raise HTTPException(404, f"Chunk not found: {target[:16]}...")
+            return Response(content=data, media_type="application/octet-stream",
+                            headers={"X-Onion-Terminal": "1"})
+        raise HTTPException(400, f"Unknown onion request op: {op!r}")
+
+    # ── Forward case: peel revealed the next hop, post the inner payload ──
+    next_endpoint = layer.get("next_endpoint") or []
+    inner_payload = layer.get("payload") or b""
+    if not next_endpoint or len(next_endpoint) != 2:
+        raise HTTPException(400, "Malformed next_endpoint in relay layer")
+    nip, nport = next_endpoint
+    url = f"http://{nip}:{int(nport)}/relay"
+    try:
+        async with _httpx_chat.AsyncClient(timeout=60) as client:
+            r = await client.post(url, content=inner_payload)
+        # Forward whatever the next hop returned (binary or error) back upstream
+        return Response(
+            content=r.content,
+            status_code=r.status_code,
+            media_type=r.headers.get("content-type", "application/octet-stream"),
+        )
+    except _httpx_chat.HTTPError as e:
+        logger.debug(f"Onion relay forward to {nip}:{nport} failed: {e}")
+        raise HTTPException(502, "Onion relay forward failed")
+
+
 # ── Phase 21: Resumable Downloads ────────────────────────────────────
 
-def _build_chunk_loader():
-    """Build the async chunk loader with local + peer fallback."""
-    import httpx
+def _build_chunk_loader(manifest=None):
+    """
+    Build the async chunk loader with local + onion-relayed peer fallback.
+
+    If `manifest` is provided and is in erasure mode, the loader transparently
+    reconstructs each chunk from any k of n Reed-Solomon shards (Phase 23).
+    Otherwise the loader fetches whole chunks (k-copy mode). All cross-peer
+    fetches go through onion circuits (Phase 25A).
+    """
+    paths_recorded: dict = {}
+    file_hash_for_record = manifest.file_hash if manifest else None
+
+    async def _peer_fetch_one(target_hash: str):
+        return await _onion_fetch_chunk(target_hash, paths_recorded)
+
+    erasure_mode = bool(manifest and manifest.replication_mode == "erasure")
+    chunks_by_hash = {c.chunk_hash: c for c in manifest.chunks} if manifest else {}
 
     async def load_chunk(chunk_hash: str) -> bytes:
-        # Try local first
+        # Erasure mode: reconstruct from shards.
+        if erasure_mode:
+            info = chunks_by_hash.get(chunk_hash)
+            if info is not None and info.shards:
+                from backend.strategies.erasure import fetch_and_decode_chunk
+                return await fetch_and_decode_chunk(
+                    info, manifest.erasure_k, manifest.erasure_n,
+                    _local_store, _peer_fetch_one,
+                )
+        # k-copy mode: try local, then peers.
         data = _local_store.load_chunk(chunk_hash)
         if data is not None:
             return data
-        # Peer fallback
-        peers = await _node.state.get_alive_peers()
-        for nid, peer in peers.items():
-            try:
-                async with httpx.AsyncClient(timeout=30) as client:
-                    resp = await client.get(
-                        f"http://{peer.ip}:{peer.api_port}/chunk/{chunk_hash}"
-                    )
-                if resp.status_code == 200:
-                    _local_store.save_chunk(chunk_hash, resp.content)
-                    return resp.content
-            except Exception:
-                continue
+        data = await _peer_fetch_one(chunk_hash)
+        if data is not None:
+            _local_store.save_chunk(chunk_hash, data)
+            return data
         raise FileNotFoundError(f"Chunk {chunk_hash[:16]}... not available")
 
+    # Phase 25A: closure exposes its path-recording dict so the resumable
+    # download endpoints can flush it to _download_paths after completion.
+    load_chunk._paths_recorded = paths_recorded            # type: ignore[attr-defined]
+    load_chunk._file_hash_for_record = file_hash_for_record  # type: ignore[attr-defined]
     return load_chunk
 
 
@@ -485,6 +638,57 @@ async def list_downloads():
     if not _download_manager:
         raise HTTPException(503, "Download manager not initialized")
     return {"downloads": _download_manager.get_all_downloads()}
+
+
+# ── Phase 25A: download path inspection ────────────────────────────────
+
+def _decorate_path(node_ids: list, alive_peers: dict) -> list[dict]:
+    """Turn a list of node_ids into UI-friendly entries with names + role.
+
+    Self-aware: if a hop equals our own node_id, label it accordingly so
+    sender-side receipt views still show meaningful names instead of blanks.
+    """
+    out = []
+    n = len(node_ids)
+    self_id = _node.state.node_id if _node else ""
+    self_name = _node.state.name if _node else ""
+    for i, nid in enumerate(node_ids):
+        peer = alive_peers.get(nid)
+        if i == n - 1:
+            role = "holder"
+        elif i == 0:
+            role = "entry"
+        else:
+            role = "relay"
+        if nid == self_id:
+            name = self_name + " (this node)"
+            online = True
+        else:
+            name = peer.name if peer else ""
+            online = nid in alive_peers
+        out.append({"node_id": nid, "name": name, "online": online, "role": role})
+    return out
+
+
+@router.get("/download/{file_hash}/path")
+async def get_download_path(file_hash: str):
+    """Return the relay path used the last time this file was fetched."""
+    if not _node:
+        raise HTTPException(503, "Node not initialized")
+    rec = _download_paths.get(file_hash)
+    if rec is None:
+        raise HTTPException(404, "No path recorded for this file (was it ever fetched on this node?)")
+    alive = await _node.state.get_alive_peers()
+    return {
+        "file_hash": file_hash,
+        "self_node_id": _node.state.node_id,
+        "self_name": _node.state.name,
+        "unique_hops": _decorate_path(rec["unique_hops"], alive),
+        "per_chunk": {
+            target: _decorate_path(path, alive)
+            for target, path in rec["per_chunk"].items()
+        },
+    }
 
 
 @router.post("/download/{file_hash}/start")
@@ -519,11 +723,12 @@ async def start_resumable_download(file_hash: str, password: str = ""):
     if not manifest_dict:
         raise HTTPException(404, f"File not found: {file_hash}")
 
+    parsed_manifest = FileManifest.from_dict(manifest_dict)
     state = await _download_manager.start_download(
         file_hash=file_hash,
         manifest_dict=manifest_dict,
         password=password,
-        load_chunk_fn=_build_chunk_loader(),
+        load_chunk_fn=_build_chunk_loader(parsed_manifest),
         local_store=_local_store,
     )
 
@@ -549,10 +754,15 @@ async def resume_download(file_hash: str, password: str = ""):
     if not _download_manager or not _local_store:
         raise HTTPException(503, "Node not initialized")
 
+    # Reload manifest so the loader knows the replication mode (k-copy vs erasure)
+    from backend.file_engine.chunker import FileManifest
+    manifest_dict = _local_store.load_manifest(file_hash)
+    parsed_manifest = FileManifest.from_dict(manifest_dict) if manifest_dict else None
+
     state = await _download_manager.resume_download(
         file_hash=file_hash,
         password=password,
-        load_chunk_fn=_build_chunk_loader(),
+        load_chunk_fn=_build_chunk_loader(parsed_manifest),
         local_store=_local_store,
     )
 
@@ -671,3 +881,687 @@ async def handle_tcp_chat(msg: dict):
     # Gossip: re-broadcast to our TCP peers (flood protocol)
     if _node:
         await _node.conn_mgr.broadcast_to_peers(msg)
+
+
+# ── Phase 24A: Invite-based 1:1 Chat ──────────────────────────────────
+#
+# Wire protocol:
+#   1. Node A sends invite to node B  →  POST /peer/chat/invite on B's API.
+#      A stores the thread as outgoing_pending; B stores it as incoming_pending.
+#   2. B accepts the invite           →  POST /peer/chat/accept on A's API.
+#      Both flip to accepted.
+#   3. Either side sends a message    →  POST /peer/chat/message on the other.
+#      Receiver appends to its local message log (thread must be accepted).
+# All peer-to-peer requests carry {from_node_id, from_name} so the recipient
+# knows who originated the action; HMAC swarm-auth is the existing UDP/TCP
+# guard, so HTTP peer endpoints currently trust the LAN.
+
+import httpx as _httpx_chat
+
+CHAT_PEER_TIMEOUT = 8
+
+
+# Phase 25A: per-file download path log (in-memory, queryable by UI / receipts).
+# Maps file_hash -> {"per_chunk": {target_hash: [node_ids...]}, "unique_hops": [...]}
+_download_paths: dict = {}
+
+
+def _record_download_path(file_hash: str, per_chunk: dict) -> None:
+    """Save the relay path used for each chunk of a completed download."""
+    if not per_chunk:
+        # Nothing fetched (everything was local) — record an empty marker
+        _download_paths[file_hash] = {"per_chunk": {}, "unique_hops": []}
+        return
+    # Build the unique ordered list of peers that touched any chunk
+    seen, ordered = set(), []
+    for path in per_chunk.values():
+        for nid in path:
+            if nid not in seen:
+                seen.add(nid)
+                ordered.append(nid)
+    _download_paths[file_hash] = {"per_chunk": per_chunk, "unique_hops": ordered}
+
+
+# ── Phase 25A: Onion-routed chunk fetch helper ─────────────────────────
+
+async def _onion_fetch_chunk(target_hash: str, paths_recorded: dict | None = None,
+                              hops: int = 2) -> bytes | None:
+    """Fetch one chunk/shard hash from peers via an onion circuit.
+
+    Tries each alive peer (with a known pubkey) as a candidate holder. For each
+    candidate, builds an N-hop onion circuit ending at that peer and sends the
+    fetch_chunk request through the requester → hop1 → hop2 → holder chain.
+
+    First successful response wins. Records the chosen path (excluding the
+    requester self) into `paths_recorded[target_hash]` as a list of node_ids
+    if provided. Falls back to a direct /chunk fetch only when no peer has a
+    valid pubkey (e.g. legacy nodes from before Phase 25A).
+
+    Returns the chunk bytes, or None if no peer could supply it.
+    """
+    from backend.network.onion import pick_circuit, pack_circuit
+
+    if not _node:
+        return None
+    peers = await _node.state.get_alive_peers()
+    if not peers:
+        return None
+
+    candidates = [(pid, p) for pid, p in peers.items() if getattr(p, "public_key", "")]
+    if not candidates:
+        # No identities yet — degrade to direct /chunk fetch (legacy peers)
+        for _pid, p in peers.items():
+            try:
+                async with _httpx_chat.AsyncClient(timeout=30) as client:
+                    r = await client.get(f"http://{p.ip}:{p.api_port}/chunk/{target_hash}")
+                if r.status_code == 200:
+                    if paths_recorded is not None:
+                        paths_recorded[target_hash] = [_pid]  # direct, single-hop
+                    return r.content
+            except Exception:
+                continue
+        return None
+
+    # Try each candidate as the holder via an onion circuit
+    for holder_id, _ in candidates:
+        try:
+            circuit = pick_circuit(holder_id, peers, _node.state.node_id, hops=hops)
+        except ValueError:
+            continue  # candidate has no pubkey
+        first_hop = circuit[0]
+        outer = pack_circuit(circuit, {"op": "fetch_chunk", "chunk_hash": target_hash})
+        url = f"http://{first_hop[1]}:{first_hop[2]}/relay"
+        try:
+            async with _httpx_chat.AsyncClient(timeout=60) as client:
+                r = await client.post(url, content=outer)
+            if r.status_code == 200:
+                if paths_recorded is not None:
+                    paths_recorded[target_hash] = [hop[0] for hop in circuit]
+                return r.content
+            # 404 from holder = candidate didn't have it; try next candidate
+        except Exception as e:
+            logger.debug(f"Onion fetch via {first_hop[0][:12]}... failed: {e}")
+            continue
+    return None
+
+
+async def _resolve_peer_endpoint(peer_id: str):
+    """Look up a peer's (ip, api_port, name) from the alive-peer table.
+    Returns None if the peer is not currently visible on the network."""
+    if not _node:
+        return None
+    peers = await _node.state.get_alive_peers()
+    peer = peers.get(peer_id)
+    if not peer:
+        return None
+    return peer.ip, peer.api_port, peer.name
+
+
+def _self_ident() -> dict:
+    return {"from_node_id": _node.state.node_id, "from_name": _node.state.name}
+
+
+def _enrich_thread(t: dict, alive_ids: set, last_msg: dict | None = None) -> dict:
+    """Add UI-facing fields to a thread row: online status + last-message preview."""
+    out = dict(t)
+    out["online"] = t["peer_id"] in alive_ids
+    if last_msg:
+        out["last_message"] = last_msg["body"]
+        out["last_message_at"] = last_msg["sent_at"]
+        out["last_message_from_self"] = bool(last_msg["from_self"])
+    else:
+        out["last_message"] = None
+        out["last_message_at"] = None
+        out["last_message_from_self"] = None
+    return out
+
+
+# ── UI-facing endpoints ────────────────────────────────────────────
+
+@router.get("/chats")
+async def list_chats():
+    """Return every chat thread with status + online indicator + last-message preview."""
+    if not _node or not _local_store:
+        raise HTTPException(503, "Node not initialized")
+
+    threads = await _local_store.db.get_all_chat_threads()
+    alive = await _node.state.get_alive_peers()
+    alive_ids = set(alive.keys())
+
+    out = []
+    for t in threads:
+        msgs = await _local_store.db.get_chat_messages(t["peer_id"], limit=1)
+        # get_chat_messages returns ascending; take the last one if any
+        msgs_all = await _local_store.db.get_chat_messages(t["peer_id"], limit=500)
+        last = msgs_all[-1] if msgs_all else None
+        out.append(_enrich_thread(t, alive_ids, last))
+    return {"chats": out, "self_node_id": _node.state.node_id}
+
+
+@router.post("/chats/invite")
+async def invite_to_chat(payload: dict):
+    """Send a chat invite to the peer with the given peer_id."""
+    if not _node or not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    peer_id = (payload or {}).get("peer_id", "").strip()
+    if not peer_id:
+        raise HTTPException(400, "peer_id is required")
+    if peer_id == _node.state.node_id:
+        raise HTTPException(400, "Cannot invite yourself")
+
+    target = await _resolve_peer_endpoint(peer_id)
+    if not target:
+        raise HTTPException(404, f"Peer {peer_id[:12]}... is not currently visible on the LAN")
+    ip, api_port, peer_name = target
+
+    # Refuse if there is already an accepted thread or an incoming invite from them
+    existing = await _local_store.db.get_chat_thread(peer_id)
+    if existing and existing["status"] == "accepted":
+        return {"status": "noop", "reason": "thread already accepted",
+                "thread": _enrich_thread(existing, {peer_id})}
+    if existing and existing["status"] == "incoming_pending":
+        raise HTTPException(409, "This peer already invited you — accept their invite instead")
+
+    # Send the invite to the peer's HTTP API
+    try:
+        async with _httpx_chat.AsyncClient(timeout=CHAT_PEER_TIMEOUT) as client:
+            r = await client.post(
+                f"http://{ip}:{api_port}/peer/chat/invite", json=_self_ident()
+            )
+        if r.status_code >= 400:
+            raise HTTPException(502, f"Peer rejected invite: HTTP {r.status_code}")
+    except _httpx_chat.HTTPError as e:
+        raise HTTPException(502, f"Failed to reach peer: {e}")
+
+    # Store outgoing_pending locally
+    thread = await _local_store.db.upsert_chat_thread(
+        peer_id=peer_id, status="outgoing_pending",
+        invited_by_self=True, peer_name=peer_name,
+    )
+    logger.info(f"Sent chat invite to {peer_name} ({peer_id[:12]}...)")
+    return {"status": "sent", "thread": _enrich_thread(thread, {peer_id})}
+
+
+@router.post("/chats/{peer_id}/accept")
+async def accept_chat(peer_id: str):
+    """Accept an incoming chat invite from peer_id."""
+    if not _node or not _local_store:
+        raise HTTPException(503, "Node not initialized")
+
+    thread = await _local_store.db.get_chat_thread(peer_id)
+    if not thread:
+        raise HTTPException(404, "No invite from this peer")
+    if thread["status"] != "incoming_pending":
+        raise HTTPException(409, f"Cannot accept — thread is in '{thread['status']}'")
+
+    target = await _resolve_peer_endpoint(peer_id)
+    if not target:
+        raise HTTPException(503, "Peer is offline — try again when they are visible")
+    ip, api_port, _ = target
+
+    try:
+        async with _httpx_chat.AsyncClient(timeout=CHAT_PEER_TIMEOUT) as client:
+            r = await client.post(
+                f"http://{ip}:{api_port}/peer/chat/accept", json=_self_ident()
+            )
+        if r.status_code >= 400:
+            raise HTTPException(502, f"Peer did not acknowledge: HTTP {r.status_code}")
+    except _httpx_chat.HTTPError as e:
+        raise HTTPException(502, f"Failed to reach peer: {e}")
+
+    updated = await _local_store.db.upsert_chat_thread(
+        peer_id=peer_id, status="accepted",
+        invited_by_self=False, peer_name=thread["peer_name"],
+    )
+    logger.info(f"Accepted chat invite from {peer_id[:12]}...")
+    return {"status": "accepted", "thread": _enrich_thread(updated, {peer_id})}
+
+
+@router.post("/chats/{peer_id}/reject")
+async def reject_chat(peer_id: str):
+    """Reject an incoming chat invite from peer_id (best-effort notify peer)."""
+    if not _node or not _local_store:
+        raise HTTPException(503, "Node not initialized")
+
+    thread = await _local_store.db.get_chat_thread(peer_id)
+    if not thread:
+        raise HTTPException(404, "No invite from this peer")
+    if thread["status"] != "incoming_pending":
+        raise HTTPException(409, f"Cannot reject — thread is in '{thread['status']}'")
+
+    # Try to notify the peer; do not fail the local action if the peer is unreachable
+    target = await _resolve_peer_endpoint(peer_id)
+    if target:
+        ip, api_port, _ = target
+        try:
+            async with _httpx_chat.AsyncClient(timeout=CHAT_PEER_TIMEOUT) as client:
+                await client.post(
+                    f"http://{ip}:{api_port}/peer/chat/reject", json=_self_ident()
+                )
+        except Exception:
+            pass
+
+    await _local_store.db.delete_chat_thread(peer_id)
+    return {"status": "rejected"}
+
+
+@router.post("/chats/{peer_id}/messages")
+async def send_chat_message(peer_id: str, payload: dict):
+    """Send a 1:1 message in an accepted thread."""
+    if not _node or not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    body = (payload or {}).get("text", "").strip()
+    if not body:
+        raise HTTPException(400, "text is required")
+
+    thread = await _local_store.db.get_chat_thread(peer_id)
+    if not thread or thread["status"] != "accepted":
+        raise HTTPException(409, "Thread is not accepted yet")
+
+    target = await _resolve_peer_endpoint(peer_id)
+    if not target:
+        raise HTTPException(503, "Peer is offline — message not delivered")
+    ip, api_port, _ = target
+
+    try:
+        async with _httpx_chat.AsyncClient(timeout=CHAT_PEER_TIMEOUT) as client:
+            r = await client.post(
+                f"http://{ip}:{api_port}/peer/chat/message",
+                json={**_self_ident(), "body": body},
+            )
+        if r.status_code >= 400:
+            raise HTTPException(502, f"Peer rejected message: HTTP {r.status_code}")
+    except _httpx_chat.HTTPError as e:
+        raise HTTPException(502, f"Failed to reach peer: {e}")
+
+    msg = await _local_store.db.append_chat_message(peer_id, from_self=True, body=body)
+    return {"status": "sent", "message": msg}
+
+
+@router.get("/chats/{peer_id}/messages")
+async def get_chat_messages(peer_id: str, limit: int = 500):
+    """Return the local message log for a thread, oldest first."""
+    if not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    thread = await _local_store.db.get_chat_thread(peer_id)
+    if not thread:
+        raise HTTPException(404, "Thread not found")
+    msgs = await _local_store.db.get_chat_messages(peer_id, limit=limit)
+    return {"thread": thread, "messages": msgs}
+
+
+@router.delete("/chats/{peer_id}")
+async def delete_chat(peer_id: str):
+    """Delete a thread + all its messages (local-only; peer keeps theirs)."""
+    if not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    ok = await _local_store.db.delete_chat_thread(peer_id)
+    if not ok:
+        raise HTTPException(404, "Thread not found")
+    return {"status": "deleted"}
+
+
+# ── Peer-to-peer endpoints (called by other nodes) ─────────────────
+
+@router.post("/peer/chat/invite")
+async def peer_chat_invite(payload: dict):
+    """Receive a chat invite from another node."""
+    if not _node or not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    sender_id = (payload or {}).get("from_node_id", "").strip()
+    sender_name = (payload or {}).get("from_name", "").strip()
+    if not sender_id:
+        raise HTTPException(400, "from_node_id required")
+
+    existing = await _local_store.db.get_chat_thread(sender_id)
+    # If we already accepted this peer, treat invite as a no-op refresh
+    if existing and existing["status"] == "accepted":
+        return {"status": "already_accepted"}
+    # If we already invited THEM and now they invited us, auto-accept (mutual invite)
+    if existing and existing["status"] == "outgoing_pending":
+        await _local_store.db.upsert_chat_thread(
+            peer_id=sender_id, status="accepted",
+            invited_by_self=True, peer_name=sender_name,
+        )
+        logger.info(f"Mutual invite — auto-accepted with {sender_id[:12]}...")
+        return {"status": "auto_accepted"}
+
+    await _local_store.db.upsert_chat_thread(
+        peer_id=sender_id, status="incoming_pending",
+        invited_by_self=False, peer_name=sender_name,
+    )
+    logger.info(f"Received chat invite from {sender_name} ({sender_id[:12]}...)")
+    return {"status": "received"}
+
+
+@router.post("/peer/chat/accept")
+async def peer_chat_accept(payload: dict):
+    """A peer we invited has accepted — flip our local thread to accepted."""
+    if not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    sender_id = (payload or {}).get("from_node_id", "").strip()
+    sender_name = (payload or {}).get("from_name", "").strip()
+    if not sender_id:
+        raise HTTPException(400, "from_node_id required")
+
+    existing = await _local_store.db.get_chat_thread(sender_id)
+    if not existing or existing["status"] != "outgoing_pending":
+        # Peer is acknowledging an invite we don't remember; accept it anyway so
+        # we don't desync if our DB was wiped — this is a low-risk LAN tool.
+        pass
+    await _local_store.db.upsert_chat_thread(
+        peer_id=sender_id, status="accepted",
+        invited_by_self=True, peer_name=sender_name,
+    )
+    logger.info(f"Peer {sender_name} ({sender_id[:12]}...) accepted our invite")
+    return {"status": "accepted"}
+
+
+@router.post("/peer/chat/reject")
+async def peer_chat_reject(payload: dict):
+    """A peer rejected our invite — remove the local thread."""
+    if not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    sender_id = (payload or {}).get("from_node_id", "").strip()
+    if not sender_id:
+        raise HTTPException(400, "from_node_id required")
+    await _local_store.db.delete_chat_thread(sender_id)
+    return {"status": "removed"}
+
+
+@router.post("/peer/chat/message")
+async def peer_chat_message(payload: dict):
+    """Receive a 1:1 chat message from a peer in an accepted thread."""
+    if not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    sender_id = (payload or {}).get("from_node_id", "").strip()
+    sender_name = (payload or {}).get("from_name", "").strip()
+    body = (payload or {}).get("body", "").strip()
+    if not sender_id or not body:
+        raise HTTPException(400, "from_node_id and body required")
+
+    thread = await _local_store.db.get_chat_thread(sender_id)
+    if not thread or thread["status"] != "accepted":
+        # Reject silently from sender's perspective so they cannot probe our state
+        raise HTTPException(403, "No accepted thread with this peer")
+
+    # Keep peer_name fresh in case it changed
+    if sender_name and sender_name != thread.get("peer_name", ""):
+        await _local_store.db.upsert_chat_thread(
+            peer_id=sender_id, status="accepted",
+            invited_by_self=bool(thread["invited_by_self"]), peer_name=sender_name,
+        )
+
+    msg = await _local_store.db.append_chat_message(sender_id, from_self=False, body=body)
+    return {"status": "received", "message": msg}
+
+
+# ── Phase 24C: File sharing (selective download by peer ref) ──────────
+#
+# Sender POSTs /share with {to_peer_id, file_hashes, note}. The backend
+# resolves each hash to its manifest (filename, size), then POSTs to the
+# recipient's /peer/share/notify which inserts one row per file into the
+# recipient's file_shares inbox. Recipient's UI lists the inbox and lets
+# them download whichever ones they want via the existing /download flow.
+#
+# No accept/reject — receiving the share is just metadata; the recipient
+# only pays bandwidth for the specific files they choose to pull.
+
+@router.post("/share")
+async def send_share(payload: dict):
+    """Share a list of file hashes with a peer (requires an accepted chat thread)."""
+    if not _node or not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    to_peer = (payload or {}).get("to_peer_id", "").strip()
+    file_hashes = (payload or {}).get("file_hashes") or []
+    note = (payload or {}).get("note", "")
+    if not to_peer:
+        raise HTTPException(400, "to_peer_id required")
+    if to_peer == _node.state.node_id:
+        raise HTTPException(400, "Cannot share with yourself")
+    if not isinstance(file_hashes, list) or not file_hashes:
+        raise HTTPException(400, "file_hashes must be a non-empty list")
+
+    # Phase 24C+: file sharing piggy-backs on the chat invite as the consent gate
+    thread = await _local_store.db.get_chat_thread(to_peer)
+    if not thread or thread["status"] != "accepted":
+        raise HTTPException(
+            403,
+            "You can only share files with peers you have an accepted chat with. "
+            "Send a chat invite first.",
+        )
+
+    target = await _resolve_peer_endpoint(to_peer)
+    if not target:
+        raise HTTPException(404, f"Peer {to_peer[:12]}... is not currently visible")
+    ip, api_port, _ = target
+
+    # Look up each manifest locally to capture filename + size for the share record
+    files_payload = []
+    missing = []
+    for fh in file_hashes:
+        m = _local_store.load_manifest(fh)
+        if not m:
+            missing.append(fh)
+            continue
+        files_payload.append({
+            "file_hash": fh,
+            "filename": m.get("original_filename", ""),
+            "size": m.get("original_size", 0),
+        })
+    if missing:
+        raise HTTPException(404, f"Unknown file hash(es): {', '.join(h[:12] + '...' for h in missing)}")
+
+    # Notify the recipient
+    body = {**_self_ident(), "files": files_payload, "note": note}
+    try:
+        async with _httpx_chat.AsyncClient(timeout=CHAT_PEER_TIMEOUT) as client:
+            r = await client.post(f"http://{ip}:{api_port}/peer/share/notify", json=body)
+        if r.status_code >= 400:
+            raise HTTPException(502, f"Peer rejected share: HTTP {r.status_code}")
+    except _httpx_chat.HTTPError as e:
+        raise HTTPException(502, f"Failed to reach peer: {e}")
+
+    logger.info(
+        f"Shared {len(files_payload)} file(s) with {to_peer[:12]}..."
+    )
+    return {"status": "sent", "shared_count": len(files_payload)}
+
+
+@router.get("/shares")
+async def list_shares():
+    """Return the inbox of file references shared with this node by other peers."""
+    if not _node or not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    rows = await _local_store.db.get_all_file_shares()
+    alive = await _node.state.get_alive_peers()
+    alive_ids = set(alive.keys())
+
+    # Detect already-downloaded files by checking the local manifest store
+    local_hashes = {
+        m.get("file_hash") for m in _local_store.get_all_manifests()
+    }
+
+    out = []
+    for r in rows:
+        out.append({
+            **r,
+            "online": r["from_peer_id"] in alive_ids,
+            "downloaded": r["file_hash"] in local_hashes,
+        })
+    return {"shares": out}
+
+
+@router.delete("/shares/{share_id}")
+async def delete_share(share_id: int):
+    """Remove a share record from the inbox (does not delete the file itself)."""
+    if not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    ok = await _local_store.db.delete_file_share(share_id)
+    if not ok:
+        raise HTTPException(404, "Share not found")
+    return {"status": "deleted"}
+
+
+@router.post("/shares/{share_id}/ack")
+async def acknowledge_share(share_id: int):
+    """Send the sender of this share a delivery receipt with the path we used.
+
+    The sender stores the receipt locally; the path is taken from this node's
+    in-memory _download_paths map (populated when /download was called for this
+    file_hash). Voluntary disclosure — only friends with accepted chats can
+    receive this since it goes through the same chat-gated channel.
+    """
+    if not _node or not _local_store:
+        raise HTTPException(503, "Node not initialized")
+
+    # Find the share record
+    rows = await _local_store.db.get_all_file_shares()
+    share = next((r for r in rows if r["id"] == share_id), None)
+    if not share:
+        raise HTTPException(404, "Share not found")
+
+    # Look up the path used to download this file (from /download)
+    path_rec = _download_paths.get(share["file_hash"])
+    if not path_rec:
+        raise HTTPException(409, "No download path recorded yet — download the file first")
+
+    target = await _resolve_peer_endpoint(share["from_peer_id"])
+    if not target:
+        raise HTTPException(503, "Sender not currently online")
+    ip, api_port, _ = target
+
+    body = {
+        **_self_ident(),
+        "file_hash": share["file_hash"],
+        "path": path_rec["unique_hops"],   # list of node_ids in order
+        "per_chunk_paths": path_rec["per_chunk"],
+    }
+    try:
+        async with _httpx_chat.AsyncClient(timeout=CHAT_PEER_TIMEOUT) as client:
+            r = await client.post(
+                f"http://{ip}:{api_port}/peer/share/receipt", json=body,
+            )
+        if r.status_code >= 400:
+            raise HTTPException(502, f"Sender refused receipt: HTTP {r.status_code}")
+    except _httpx_chat.HTTPError as e:
+        raise HTTPException(502, f"Failed to reach sender: {e}")
+    return {"status": "sent"}
+
+
+@router.get("/shares/{share_id}/path")
+async def get_share_path(share_id: int):
+    """Return the relay path used to download this share (recipient view)."""
+    if not _local_store or not _node:
+        raise HTTPException(503, "Node not initialized")
+    rows = await _local_store.db.get_all_file_shares()
+    share = next((r for r in rows if r["id"] == share_id), None)
+    if not share:
+        raise HTTPException(404, "Share not found")
+    rec = _download_paths.get(share["file_hash"])
+    if not rec:
+        return {"file_hash": share["file_hash"], "path": None,
+                "message": "no path recorded — file may not have been downloaded yet"}
+    alive = await _node.state.get_alive_peers()
+    return {
+        "file_hash": share["file_hash"],
+        "self_node_id": _node.state.node_id,
+        "self_name": _node.state.name,
+        "path": _decorate_path(rec["unique_hops"], alive),
+    }
+
+
+@router.get("/share-receipts")
+async def list_share_receipts():
+    """Sender-side: list every delivery receipt we've received from peers."""
+    if not _local_store or not _node:
+        raise HTTPException(503, "Node not initialized")
+    rows = await _local_store.db.get_all_share_receipts()
+    alive = await _node.state.get_alive_peers()
+    out = []
+    import json as _json
+    for r in rows:
+        path_ids = _json.loads(r["path_json"])
+        out.append({
+            **r,
+            "path": _decorate_path(path_ids, alive),
+        })
+    return {"receipts": out}
+
+
+@router.post("/peer/share/receipt")
+async def peer_share_receipt(payload: dict):
+    """Receive a delivery receipt from a peer who downloaded one of our shares.
+
+    Same chat-consent gate as /peer/share/notify — only friends with accepted
+    chats can deliver receipts to us.
+    """
+    if not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    sender_id = (payload or {}).get("from_node_id", "").strip()
+    sender_name = (payload or {}).get("from_name", "").strip()
+    file_hash = (payload or {}).get("file_hash", "").strip()
+    path = (payload or {}).get("path") or []
+    if not sender_id or not file_hash:
+        raise HTTPException(400, "from_node_id and file_hash required")
+
+    thread = await _local_store.db.get_chat_thread(sender_id)
+    if not thread or thread["status"] != "accepted":
+        raise HTTPException(403, "No accepted chat thread with this peer")
+
+    import json as _json
+    rec = await _local_store.db.insert_share_receipt(
+        file_hash=file_hash,
+        receiver_id=sender_id,
+        receiver_name=sender_name,
+        path_json=_json.dumps(path),
+    )
+    logger.info(
+        f"Got delivery receipt from {sender_name} ({sender_id[:12]}...) for "
+        f"file {file_hash[:12]}... via {len(path)}-hop path"
+    )
+    return {"status": "received", "id": rec["id"]}
+
+
+@router.post("/peer/share/notify")
+async def peer_share_notify(payload: dict):
+    """Receive a file-share notification from another peer.
+
+    Gated by chat consent: we only accept shares from peers we have an
+    accepted chat thread with. This makes file sharing piggy-back on the
+    same invite handshake as chats — one consent covers both.
+    """
+    if not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    sender_id = (payload or {}).get("from_node_id", "").strip()
+    sender_name = (payload or {}).get("from_name", "").strip()
+    files = (payload or {}).get("files") or []
+    note = (payload or {}).get("note", "")
+    if not sender_id or not files:
+        raise HTTPException(400, "from_node_id and files required")
+
+    # Phase 24C+: only accept shares from peers we have an accepted chat with
+    thread = await _local_store.db.get_chat_thread(sender_id)
+    if not thread or thread["status"] != "accepted":
+        # Refuse uninvited shares — sender must initiate a chat first
+        raise HTTPException(403, "No accepted chat thread with this peer")
+
+    inserted = []
+    for f in files:
+        fh = (f.get("file_hash") or "").strip()
+        if not fh:
+            continue
+        rec = await _local_store.db.insert_file_share(
+            from_peer_id=sender_id,
+            from_peer_name=sender_name,
+            file_hash=fh,
+            filename=f.get("filename", ""),
+            size=int(f.get("size", 0) or 0),
+            note=note,
+        )
+        inserted.append(rec["id"])
+
+    logger.info(
+        f"Received {len(inserted)} share(s) from {sender_name} ({sender_id[:12]}...)"
+    )
+    return {"status": "received", "inserted_ids": inserted}
