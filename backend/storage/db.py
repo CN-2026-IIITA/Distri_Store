@@ -105,6 +105,23 @@ class NodeDatabase:
             "CREATE INDEX IF NOT EXISTS idx_file_shares_peer "
             "ON file_shares(from_peer_id, sent_at DESC)"
         )
+        # Phase 25A: delivery receipts — receiver tells sender "I downloaded it
+        # via path X". Stored on the SENDER's side so the sender can see who
+        # downloaded what (only voluntary disclosure from receiver).
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS share_receipts (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                file_hash       TEXT NOT NULL,
+                receiver_id     TEXT NOT NULL,
+                receiver_name   TEXT DEFAULT '',
+                path_json       TEXT NOT NULL,
+                received_at     REAL NOT NULL
+            )
+        """)
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_share_receipts_file "
+            "ON share_receipts(file_hash, received_at DESC)"
+        )
         # Phase 18: migrate existing tables that lack the compression column
         # Phase 23: migrate existing tables that lack erasure-mode columns
         for ddl in (
@@ -320,6 +337,42 @@ class NodeDatabase:
         self._conn.commit()
         return cur.rowcount > 0
 
+    # ── Phase 25A: share delivery receipts ─────────────────────────
+
+    def _insert_share_receipt_sync(
+        self, file_hash: str, receiver_id: str, receiver_name: str,
+        path_json: str,
+    ) -> dict:
+        now = time.time()
+        cur = self._conn.execute(
+            """INSERT INTO share_receipts
+               (file_hash, receiver_id, receiver_name, path_json, received_at)
+               VALUES (?, ?, ?, ?, ?)""",
+            (file_hash, receiver_id, receiver_name, path_json, now),
+        )
+        self._conn.commit()
+        return {
+            "id": cur.lastrowid,
+            "file_hash": file_hash,
+            "receiver_id": receiver_id,
+            "receiver_name": receiver_name,
+            "path_json": path_json,
+            "received_at": now,
+        }
+
+    def _get_share_receipts_for_file_sync(self, file_hash: str) -> list[dict]:
+        cur = self._conn.execute(
+            "SELECT * FROM share_receipts WHERE file_hash = ? ORDER BY received_at DESC",
+            (file_hash,),
+        )
+        return [dict(row) for row in cur.fetchall()]
+
+    def _get_all_share_receipts_sync(self) -> list[dict]:
+        cur = self._conn.execute(
+            "SELECT * FROM share_receipts ORDER BY received_at DESC"
+        )
+        return [dict(row) for row in cur.fetchall()]
+
     # ── Async wrappers ─────────────────────────────────────────────
 
     async def save_manifest(self, file_hash: str, manifest_dict: dict) -> None:
@@ -376,6 +429,20 @@ class NodeDatabase:
 
     async def delete_file_share(self, share_id: int) -> bool:
         return await asyncio.to_thread(self._delete_file_share_sync, share_id)
+
+    # Phase 25A: share-receipt async wrappers
+    async def insert_share_receipt(self, file_hash: str, receiver_id: str,
+                                    receiver_name: str, path_json: str) -> dict:
+        return await asyncio.to_thread(
+            self._insert_share_receipt_sync,
+            file_hash, receiver_id, receiver_name, path_json,
+        )
+
+    async def get_share_receipts_for_file(self, file_hash: str) -> list[dict]:
+        return await asyncio.to_thread(self._get_share_receipts_for_file_sync, file_hash)
+
+    async def get_all_share_receipts(self) -> list[dict]:
+        return await asyncio.to_thread(self._get_all_share_receipts_sync)
 
     def close(self) -> None:
         self._conn.close()

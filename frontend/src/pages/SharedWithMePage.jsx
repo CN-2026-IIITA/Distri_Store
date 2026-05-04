@@ -11,13 +11,15 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Inbox, Trash2, ArrowDownToLine, KeyRound, FileText, Check,
+  Inbox, Trash2, ArrowDownToLine, KeyRound, FileText, Check, Send, Route,
 } from 'lucide-react'
 import {
   fetchShares, deleteShare, downloadFile, triggerBlobDownload,
+  fetchSharePath, ackShareDelivery,
 } from '../api/client'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
+import RoutePath from '../components/ui/RoutePath'
 
 const POLL_MS = 5000
 
@@ -40,6 +42,19 @@ export default function SharedWithMePage() {
   const [passwordPrompt, setPasswordPrompt] = useState(null)
   const [passwordValue, setPasswordValue] = useState('')
   const [error, setError] = useState('')
+  // Phase 25A: per-share onion path (after successful download)
+  const [paths, setPaths] = useState({})  // share_id -> {self_node_id, self_name, path: [...]}
+  const [acked, setAcked] = useState({})  // share_id -> bool
+  const [acking, setAcking] = useState({})
+
+  const loadPathFor = async (share) => {
+    try {
+      const data = await fetchSharePath(share.id)
+      if (data && data.path) setPaths((p) => ({ ...p, [share.id]: data }))
+    } catch (e) {
+      console.error('fetchSharePath failed:', e)
+    }
+  }
 
   const reload = async () => {
     try {
@@ -91,11 +106,25 @@ export default function SharedWithMePage() {
       triggerBlobDownload(blob, filename || share.filename)
       setPasswordPrompt(null)
       setPasswordValue('')
+      // Phase 25A: pull the onion path that was used for this download
+      loadPathFor(share)
       reload()
     } catch (err) {
       setError(err.message || 'Download failed')
     } finally {
       setDownloading((d) => ({ ...d, [share.id]: false }))
+    }
+  }
+
+  const handleAck = async (share) => {
+    setAcking((a) => ({ ...a, [share.id]: true }))
+    try {
+      await ackShareDelivery(share.id)
+      setAcked((a) => ({ ...a, [share.id]: true }))
+    } catch (err) {
+      alert(`Receipt failed: ${err.message}`)
+    } finally {
+      setAcking((a) => ({ ...a, [share.id]: false }))
     }
   }
 
@@ -134,48 +163,90 @@ export default function SharedWithMePage() {
                 </div>
 
                 <div className="file-list">
-                  {g.items.map((s) => (
-                    <div key={s.id} className="file-item">
-                      <div className="file-info">
-                        <div className="file-icon"><FileText size={18} /></div>
-                        <div>
-                          <div className="file-name">
-                            {s.filename}
-                            {s.downloaded && (
-                              <span className="shared-downloaded-badge">
-                                <Check size={11} /> downloaded
-                              </span>
-                            )}
+                  {g.items.map((s) => {
+                    const pathRec = paths[s.id]
+                    return (
+                      <div key={s.id} className="shared-row">
+                        <div className="file-item">
+                          <div className="file-info">
+                            <div className="file-icon"><FileText size={18} /></div>
+                            <div>
+                              <div className="file-name">
+                                {s.filename}
+                                {s.downloaded && (
+                                  <span className="shared-downloaded-badge">
+                                    <Check size={11} /> downloaded
+                                  </span>
+                                )}
+                              </div>
+                              <div className="file-meta">
+                                {formatBytes(s.size)} · {formatTime(s.sent_at)}
+                                {s.note ? <> · "{s.note}"</> : null}
+                              </div>
+                            </div>
                           </div>
-                          <div className="file-meta">
-                            {formatBytes(s.size)} · {formatTime(s.sent_at)}
-                            {s.note ? <> · "{s.note}"</> : null}
+                          <div className="file-actions">
+                            <div className="file-hash">{s.file_hash.slice(0, 20)}...</div>
+                            <div className="file-buttons">
+                              <button
+                                className="btn-copy btn-dl"
+                                onClick={() => handleDownloadClick(s)}
+                                disabled={downloading[s.id]}
+                                title="Download via onion route"
+                              >
+                                <ArrowDownToLine size={14} />
+                                {downloading[s.id] ? 'Downloading...' : 'Download'}
+                              </button>
+                              {s.downloaded && !pathRec && (
+                                <button
+                                  className="btn-copy"
+                                  onClick={() => loadPathFor(s)}
+                                  title="Show the relay path used"
+                                >
+                                  <Route size={14} /> Show path
+                                </button>
+                              )}
+                              {pathRec && !acked[s.id] && (
+                                <button
+                                  className="btn-copy btn-preview"
+                                  onClick={() => handleAck(s)}
+                                  disabled={acking[s.id]}
+                                  title="Tell sender you received it (sends path)"
+                                >
+                                  <Send size={14} />
+                                  {acking[s.id] ? 'Sending...' : 'Send receipt'}
+                                </button>
+                              )}
+                              {acked[s.id] && (
+                                <span className="shared-downloaded-badge">
+                                  <Check size={11} /> receipt sent
+                                </span>
+                              )}
+                              <button
+                                className="btn-copy"
+                                onClick={() => handleRemove(s.id)}
+                                title="Remove from inbox (file stays on the network)"
+                              >
+                                <Trash2 size={14} /> Remove
+                              </button>
+                            </div>
                           </div>
                         </div>
+                        {pathRec && pathRec.path && (
+                          <div className="shared-path-display">
+                            <div className="shared-path-label">
+                              <Route size={13} /> Onion path used:
+                            </div>
+                            <RoutePath
+                              hops={pathRec.path}
+                              selfNodeId={pathRec.self_node_id}
+                              selfName={pathRec.self_name}
+                            />
+                          </div>
+                        )}
                       </div>
-                      <div className="file-actions">
-                        <div className="file-hash">{s.file_hash.slice(0, 20)}...</div>
-                        <div className="file-buttons">
-                          <button
-                            className="btn-copy btn-dl"
-                            onClick={() => handleDownloadClick(s)}
-                            disabled={downloading[s.id]}
-                            title="Download this file"
-                          >
-                            <ArrowDownToLine size={14} />
-                            {downloading[s.id] ? 'Downloading...' : 'Download'}
-                          </button>
-                          <button
-                            className="btn-copy"
-                            onClick={() => handleRemove(s.id)}
-                            title="Remove from inbox (file stays on the network)"
-                          >
-                            <Trash2 size={14} /> Remove
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             ))}

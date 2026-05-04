@@ -2,15 +2,17 @@
  * DashboardPage — Main overview with stats, topology, peers, charts, and file list.
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Globe, Clock, Database, HardDrive, Folder, FileText, Inbox, Eye, ArrowDownToLine, KeyRound, Send, CheckSquare, Square } from 'lucide-react'
+import { Globe, Clock, Database, HardDrive, Folder, FileText, Inbox, Eye, ArrowDownToLine, KeyRound, Send, CheckSquare, Square, Route } from 'lucide-react'
 import useNetworkStore from '../store/useNetworkStore'
+import { fetchShareReceipts } from '../api/client'
 import StatCard from '../components/ui/StatCard'
 import Card from '../components/ui/Card'
 import CopyButton from '../components/ui/CopyButton'
 import PreviewModal, { isPreviewable } from '../components/ui/PreviewModal'
 import ShareModal from '../components/ui/ShareModal'
+import RoutePath from '../components/ui/RoutePath'
 import NetworkTopology from '../components/network/NetworkTopology'
 import PeerTable from '../components/network/PeerTable'
 import TransferSpeedChart from '../components/network/TransferSpeedChart'
@@ -59,6 +61,26 @@ export default function DashboardPage() {
 
   const filesToShare = files.filter((f) => selectedHashes.has(f.file_hash))
 
+  // Phase 25A: poll incoming delivery receipts so we can show "X downloaded
+  // your shared file via path Y" on the dashboard.
+  const [receipts, setReceipts] = useState([])
+  useEffect(() => {
+    let cancelled = false
+    const reload = async () => {
+      try {
+        const r = await fetchShareReceipts()
+        if (!cancelled) setReceipts(r)
+      } catch (e) {
+        if (!cancelled) console.error('fetchShareReceipts failed:', e)
+      }
+    }
+    reload()
+    const id = setInterval(reload, 7000)
+    return () => { cancelled = true; clearInterval(id) }
+  }, [])
+
+  const filenameByHash = files.reduce((acc, f) => { acc[f.file_hash] = f.filename; return acc }, {})
+
   const handleSelectFile = (hash) => {
     navigate(`/download?hash=${hash}`)
   }
@@ -92,6 +114,33 @@ export default function DashboardPage() {
 
       {/* Phase 21: Active Downloads */}
       <ActiveDownloads />
+
+      {/* Phase 25A: Delivery receipts — only render the card if we have any */}
+      {receipts.length > 0 && (
+        <Card title="Delivery receipts" icon={<Route size={18} />}>
+          <div className="receipts-list">
+            {receipts.map((r) => {
+              const ts = new Date((r.received_at || 0) * 1000)
+              const when = ts.toLocaleString([], {
+                month: 'short', day: 'numeric',
+                hour: '2-digit', minute: '2-digit',
+              })
+              return (
+                <div className="receipt-row" key={r.id}>
+                  <div className="receipt-row-header">
+                    <span className="receipt-from">
+                      <strong>{r.receiver_name || r.receiver_id.slice(0, 12) + '...'}</strong> downloaded{' '}
+                      <code>{filenameByHash[r.file_hash] || r.file_hash.slice(0, 16) + '...'}</code>
+                    </span>
+                    <span className="receipt-when">{when}</span>
+                  </div>
+                  <RoutePath hops={r.path} prefixSelf={false} />
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* Stored Files */}
       <Card title="Stored Files" icon={<Folder size={18} />}>

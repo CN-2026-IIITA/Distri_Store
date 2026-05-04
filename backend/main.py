@@ -74,6 +74,10 @@ async def lifespan(app):
     # Phase 16: Wire SQLite persistence into NodeState
     _node.state.set_database(_store.db)
     await _node.state.load_peers_from_db()
+    # Phase 25A: load (or generate on first boot) the onion-routing keypair
+    from backend.network.identity import load_or_create_keypair
+    _priv, _pub = load_or_create_keypair(_store.db._conn)
+    _node.state.set_identity(_priv, _pub.encode().hex())
     await _node.start(_store)
     logger.info("DistriStore node started alongside API server")
     yield

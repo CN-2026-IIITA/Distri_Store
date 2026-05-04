@@ -211,4 +211,26 @@ export async function deleteShare(shareId) {
   return data
 }
 
+// ── Phase 25A: Onion-routing path inspection + delivery receipts ──
+
+export async function fetchDownloadPath(fileHash) {
+  const { data } = await api.get(`/download/${fileHash}/path`)
+  return data
+}
+
+export async function fetchSharePath(shareId) {
+  const { data } = await api.get(`/shares/${shareId}/path`)
+  return data
+}
+
+export async function ackShareDelivery(shareId) {
+  const { data } = await api.post(`/shares/${shareId}/ack`)
+  return data
+}
+
+export async function fetchShareReceipts() {
+  const { data } = await api.get('/share-receipts')
+  return data.receipts || []
+}
+
 export default api
