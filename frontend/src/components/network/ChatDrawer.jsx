@@ -66,7 +66,9 @@ function ChatText({ text }) {
   return <>{parts}</>
 }
 
-export default function ChatDrawer() {
+export default function ChatDrawer({ visible = false }) {
+  if (!visible) return null;
+
   const [isOpen, setIsOpen] = useState(false)
   const [input, setInput] = useState('')
   const messagesEndRef = useRef(null)
