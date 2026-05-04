@@ -4,12 +4,13 @@
  * Reads prefilled hash from URL query params (from dashboard file list clicks).
  */
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Download, Lock, Play, Pause, CheckCircle, AlertCircle, Loader } from 'lucide-react'
+import { Download, Lock, Play, Pause, CheckCircle, AlertCircle, Loader, FileDown } from 'lucide-react'
 import {
   downloadFile, triggerBlobDownload,
   startResumableDownload, pauseDownload, resumeDownload,
+  downloadCompletedFile,
 } from '../api/client'
 import useNetworkStore from '../store/useNetworkStore'
 import Card from '../components/ui/Card'
@@ -40,10 +41,28 @@ export default function DownloadPage() {
 
   // Phase 21: Resumable download state
   const [starting, setStarting] = useState(false)
+  const [fetchingFile, setFetchingFile] = useState(false)
   const activeDownloads = useNetworkStore((s) => s.activeDownloads)
+
+  // Track which hashes we've already auto-downloaded to avoid duplicates
+  const autoDownloaded = useRef(new Set())
 
   // Track the current hash's download if it exists
   const currentDl = hash ? (activeDownloads || {})[hash] : null
+
+  // Auto-download the file when a resumable download completes
+  useEffect(() => {
+    if (
+      currentDl &&
+      currentDl.status === 'completed' &&
+      currentDl.output_path &&
+      hash &&
+      !autoDownloaded.current.has(hash)
+    ) {
+      autoDownloaded.current.add(hash)
+      handleFetchCompleted()
+    }
+  }, [currentDl?.status])
 
   // ── Instant download (original) ──────────────────────────────
   const handleDownload = async () => {
@@ -64,6 +83,7 @@ export default function DownloadPage() {
   const handleStartResumable = async () => {
     if (!hash) return
     setStarting(true); setError(null); setSuccess(false)
+    autoDownloaded.current.delete(hash) // Allow auto-download for this new attempt
     try {
       await startResumableDownload(hash, password)
     } catch (err) {
@@ -86,8 +106,20 @@ export default function DownloadPage() {
   const handleResume = async () => {
     if (!hash) return
     setError(null)
+    autoDownloaded.current.delete(hash) // Allow auto-download after resume
     try {
       await resumeDownload(hash, password)
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  // ── Fetch the completed merged file ──────────────────────────
+  const handleFetchCompleted = () => {
+    if (!hash) return
+    try {
+      downloadCompletedFile(hash)
+      setSuccess(true)
     } catch (err) {
       setError(err.message)
     }
@@ -142,6 +174,7 @@ export default function DownloadPage() {
                 <div className="download-item-header">
                   <div className="download-item-info">
                     {currentDl.status === 'downloading' && <Loader size={16} className="spin-slow" style={{ color: 'var(--accent-cyan)', flexShrink: 0 }} />}
+                    {currentDl.status === 'finalizing' && <Loader size={16} className="spin-slow" style={{ color: 'var(--accent-purple)', flexShrink: 0 }} />}
                     {currentDl.status === 'paused' && <Pause size={16} style={{ color: 'var(--accent-amber)', flexShrink: 0 }} />}
                     {currentDl.status === 'completed' && <CheckCircle size={16} style={{ color: 'var(--accent-green)', flexShrink: 0 }} />}
                     {currentDl.status === 'error' && <AlertCircle size={16} style={{ color: 'var(--accent-rose)', flexShrink: 0 }} />}
@@ -151,17 +184,19 @@ export default function DownloadPage() {
                       style={{
                         background:
                           currentDl.status === 'downloading' ? 'rgba(6,182,212,0.15)' :
+                          currentDl.status === 'finalizing' ? 'rgba(168,85,247,0.15)' :
                           currentDl.status === 'paused' ? 'rgba(245,158,11,0.15)' :
                           currentDl.status === 'completed' ? 'rgba(16,185,129,0.15)' :
                           'rgba(244,63,94,0.15)',
                         color:
                           currentDl.status === 'downloading' ? 'var(--accent-cyan)' :
+                          currentDl.status === 'finalizing' ? 'var(--accent-purple)' :
                           currentDl.status === 'paused' ? 'var(--accent-amber)' :
                           currentDl.status === 'completed' ? 'var(--accent-green)' :
                           'var(--accent-rose)',
                       }}
                     >
-                      {currentDl.status}
+                      {currentDl.status === 'finalizing' ? 'Merging...' : currentDl.status}
                     </span>
                   </div>
 
@@ -174,6 +209,15 @@ export default function DownloadPage() {
                     {currentDl.status === 'paused' && (
                       <button className="download-ctrl-btn download-resume-btn" onClick={handleResume}>
                         <Play size={14} /> Resume
+                      </button>
+                    )}
+                    {currentDl.status === 'completed' && (
+                      <button
+                        className="download-ctrl-btn download-resume-btn"
+                        onClick={handleFetchCompleted}
+                        disabled={fetchingFile}
+                      >
+                        <FileDown size={14} /> {fetchingFile ? 'Saving...' : 'Save File'}
                       </button>
                     )}
                   </div>

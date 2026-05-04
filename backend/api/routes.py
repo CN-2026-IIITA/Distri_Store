@@ -785,6 +785,45 @@ async def download_progress(file_hash: str):
     return {"download": state.to_dict()}
 
 
+@router.get("/download/{file_hash}/file")
+async def serve_completed_download(
+    file_hash: str,
+    background_tasks: BackgroundTasks,
+):
+    """
+    Serve the completed merged file from a resumable download.
+    This is called by the frontend when a resumable download reaches 'completed'.
+    """
+    if not _download_manager:
+        raise HTTPException(503, "Download manager not initialized")
+
+    state = _download_manager.get_download(file_hash)
+    if not state:
+        raise HTTPException(404, f"No download tracked for: {file_hash}")
+    if state.status != "completed":
+        raise HTTPException(400, f"Download not completed (status={state.status})")
+    if not state.output_path or not os.path.exists(state.output_path):
+        raise HTTPException(404, "Completed file not found on disk")
+
+    def cleanup_file():
+        try:
+            # We call clear_specific_completed, which deletes the output_path 
+            # and removes it from the _downloads dictionary so it stops showing in the UI
+            _download_manager.clear_specific_completed(file_hash)
+        except Exception as e:
+            from backend.utils.logger import get_logger
+            logger = get_logger("api.routes")
+            logger.error(f"Failed to cleanup {state.output_path}: {e}")
+
+    background_tasks.add_task(cleanup_file)
+
+    return FileResponse(
+        path=state.output_path,
+        media_type="application/octet-stream",
+        filename=state.filename,
+    )
+
+
 @router.post("/downloads/clear")
 async def clear_downloads():
     """Remove completed and errored downloads from the tracker."""
