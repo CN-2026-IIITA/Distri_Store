@@ -48,12 +48,14 @@ def _init():
     name = os.environ.get("DS_NAME", config.node.name)
     tcp_port = int(os.environ.get("DS_TCP_PORT", config.network.tcp_port))
     udp_port = int(os.environ.get("DS_UDP_PORT", config.network.discovery_port))
+    storage_dir = os.environ.get("DS_STORAGE_DIR", config.storage.chunk_dir)
 
     if name != config.node.name:
         config.node.name = name
         config.node.node_id = _generate_node_id()
     config.network.tcp_port = tcp_port
     config.network.discovery_port = udp_port
+    config.storage.chunk_dir = storage_dir
 
     setup_logging(config.logging.level, config.logging.file)
 

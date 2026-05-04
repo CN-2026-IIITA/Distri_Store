@@ -63,6 +63,31 @@ class NodeDatabase:
                 erasure_n        INTEGER DEFAULT 0
             )
         """)
+        # Phase 24A: invite-based 1:1 chat threads + messages
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS chat_threads (
+                peer_id          TEXT PRIMARY KEY,
+                peer_name        TEXT DEFAULT '',
+                status           TEXT NOT NULL,          -- outgoing_pending | incoming_pending | accepted | rejected
+                invited_by_self  INTEGER NOT NULL DEFAULT 0,
+                created_at       REAL NOT NULL,
+                updated_at       REAL NOT NULL
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS chat_messages (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                peer_id     TEXT NOT NULL,
+                from_self   INTEGER NOT NULL,    -- 1 = sent by us, 0 = received
+                body        TEXT NOT NULL,
+                sent_at     REAL NOT NULL,
+                FOREIGN KEY(peer_id) REFERENCES chat_threads(peer_id)
+            )
+        """)
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_chat_messages_peer "
+            "ON chat_messages(peer_id, sent_at)"
+        )
         # Phase 18: migrate existing tables that lack the compression column
         # Phase 23: migrate existing tables that lack erasure-mode columns
         for ddl in (
@@ -152,6 +177,94 @@ class NodeDatabase:
         cur = self._conn.execute("SELECT * FROM peers")
         return [dict(row) for row in cur.fetchall()]
 
+    # ── Phase 24A: chat thread + message operations ────────────────
+
+    def _upsert_chat_thread_sync(
+        self, peer_id: str, status: str,
+        invited_by_self: bool, peer_name: str = "",
+    ) -> dict:
+        """Insert or update a chat thread row, returning the resulting row dict."""
+        now = time.time()
+        cur = self._conn.execute(
+            "SELECT * FROM chat_threads WHERE peer_id = ?", (peer_id,)
+        )
+        existing = cur.fetchone()
+
+        if existing is None:
+            self._conn.execute(
+                """INSERT INTO chat_threads
+                   (peer_id, peer_name, status, invited_by_self, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (peer_id, peer_name, status, 1 if invited_by_self else 0, now, now),
+            )
+        else:
+            self._conn.execute(
+                """UPDATE chat_threads
+                   SET status = ?, peer_name = COALESCE(NULLIF(?, ''), peer_name),
+                       updated_at = ?
+                   WHERE peer_id = ?""",
+                (status, peer_name, now, peer_id),
+            )
+        self._conn.commit()
+
+        cur = self._conn.execute(
+            "SELECT * FROM chat_threads WHERE peer_id = ?", (peer_id,)
+        )
+        return dict(cur.fetchone())
+
+    def _get_chat_thread_sync(self, peer_id: str) -> Optional[dict]:
+        cur = self._conn.execute(
+            "SELECT * FROM chat_threads WHERE peer_id = ?", (peer_id,)
+        )
+        row = cur.fetchone()
+        return dict(row) if row else None
+
+    def _get_all_chat_threads_sync(self) -> list[dict]:
+        cur = self._conn.execute(
+            "SELECT * FROM chat_threads ORDER BY updated_at DESC"
+        )
+        return [dict(row) for row in cur.fetchall()]
+
+    def _delete_chat_thread_sync(self, peer_id: str) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM chat_messages WHERE peer_id = ?", (peer_id,)
+        )
+        cur = self._conn.execute(
+            "DELETE FROM chat_threads WHERE peer_id = ?", (peer_id,)
+        )
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    def _append_chat_message_sync(
+        self, peer_id: str, from_self: bool, body: str,
+    ) -> dict:
+        now = time.time()
+        cur = self._conn.execute(
+            """INSERT INTO chat_messages (peer_id, from_self, body, sent_at)
+               VALUES (?, ?, ?, ?)""",
+            (peer_id, 1 if from_self else 0, body, now),
+        )
+        self._conn.execute(
+            "UPDATE chat_threads SET updated_at = ? WHERE peer_id = ?",
+            (now, peer_id),
+        )
+        self._conn.commit()
+        return {
+            "id": cur.lastrowid,
+            "peer_id": peer_id,
+            "from_self": 1 if from_self else 0,
+            "body": body,
+            "sent_at": now,
+        }
+
+    def _get_chat_messages_sync(self, peer_id: str, limit: int = 500) -> list[dict]:
+        cur = self._conn.execute(
+            """SELECT * FROM chat_messages
+               WHERE peer_id = ? ORDER BY sent_at ASC LIMIT ?""",
+            (peer_id, limit),
+        )
+        return [dict(row) for row in cur.fetchall()]
+
     # ── Async wrappers ─────────────────────────────────────────────
 
     async def save_manifest(self, file_hash: str, manifest_dict: dict) -> None:
@@ -168,6 +281,31 @@ class NodeDatabase:
 
     async def get_all_peers(self) -> list[dict]:
         return await asyncio.to_thread(self._get_all_peers_sync)
+
+    # Phase 24A: chat thread + message async wrappers
+    async def upsert_chat_thread(self, peer_id: str, status: str,
+                                  invited_by_self: bool, peer_name: str = "") -> dict:
+        return await asyncio.to_thread(
+            self._upsert_chat_thread_sync,
+            peer_id, status, invited_by_self, peer_name,
+        )
+
+    async def get_chat_thread(self, peer_id: str) -> Optional[dict]:
+        return await asyncio.to_thread(self._get_chat_thread_sync, peer_id)
+
+    async def get_all_chat_threads(self) -> list[dict]:
+        return await asyncio.to_thread(self._get_all_chat_threads_sync)
+
+    async def delete_chat_thread(self, peer_id: str) -> bool:
+        return await asyncio.to_thread(self._delete_chat_thread_sync, peer_id)
+
+    async def append_chat_message(self, peer_id: str, from_self: bool, body: str) -> dict:
+        return await asyncio.to_thread(
+            self._append_chat_message_sync, peer_id, from_self, body
+        )
+
+    async def get_chat_messages(self, peer_id: str, limit: int = 500) -> list[dict]:
+        return await asyncio.to_thread(self._get_chat_messages_sync, peer_id, limit)
 
     def close(self) -> None:
         self._conn.close()

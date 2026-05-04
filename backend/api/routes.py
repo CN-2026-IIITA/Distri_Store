@@ -766,3 +766,332 @@ async def handle_tcp_chat(msg: dict):
     # Gossip: re-broadcast to our TCP peers (flood protocol)
     if _node:
         await _node.conn_mgr.broadcast_to_peers(msg)
+
+
+# ── Phase 24A: Invite-based 1:1 Chat ──────────────────────────────────
+#
+# Wire protocol:
+#   1. Node A sends invite to node B  →  POST /peer/chat/invite on B's API.
+#      A stores the thread as outgoing_pending; B stores it as incoming_pending.
+#   2. B accepts the invite           →  POST /peer/chat/accept on A's API.
+#      Both flip to accepted.
+#   3. Either side sends a message    →  POST /peer/chat/message on the other.
+#      Receiver appends to its local message log (thread must be accepted).
+# All peer-to-peer requests carry {from_node_id, from_name} so the recipient
+# knows who originated the action; HMAC swarm-auth is the existing UDP/TCP
+# guard, so HTTP peer endpoints currently trust the LAN.
+
+import httpx as _httpx_chat
+
+CHAT_PEER_TIMEOUT = 8
+
+
+async def _resolve_peer_endpoint(peer_id: str):
+    """Look up a peer's (ip, api_port, name) from the alive-peer table.
+    Returns None if the peer is not currently visible on the network."""
+    if not _node:
+        return None
+    peers = await _node.state.get_alive_peers()
+    peer = peers.get(peer_id)
+    if not peer:
+        return None
+    return peer.ip, peer.api_port, peer.name
+
+
+def _self_ident() -> dict:
+    return {"from_node_id": _node.state.node_id, "from_name": _node.state.name}
+
+
+def _enrich_thread(t: dict, alive_ids: set, last_msg: dict | None = None) -> dict:
+    """Add UI-facing fields to a thread row: online status + last-message preview."""
+    out = dict(t)
+    out["online"] = t["peer_id"] in alive_ids
+    if last_msg:
+        out["last_message"] = last_msg["body"]
+        out["last_message_at"] = last_msg["sent_at"]
+        out["last_message_from_self"] = bool(last_msg["from_self"])
+    else:
+        out["last_message"] = None
+        out["last_message_at"] = None
+        out["last_message_from_self"] = None
+    return out
+
+
+# ── UI-facing endpoints ────────────────────────────────────────────
+
+@router.get("/chats")
+async def list_chats():
+    """Return every chat thread with status + online indicator + last-message preview."""
+    if not _node or not _local_store:
+        raise HTTPException(503, "Node not initialized")
+
+    threads = await _local_store.db.get_all_chat_threads()
+    alive = await _node.state.get_alive_peers()
+    alive_ids = set(alive.keys())
+
+    out = []
+    for t in threads:
+        msgs = await _local_store.db.get_chat_messages(t["peer_id"], limit=1)
+        # get_chat_messages returns ascending; take the last one if any
+        msgs_all = await _local_store.db.get_chat_messages(t["peer_id"], limit=500)
+        last = msgs_all[-1] if msgs_all else None
+        out.append(_enrich_thread(t, alive_ids, last))
+    return {"chats": out, "self_node_id": _node.state.node_id}
+
+
+@router.post("/chats/invite")
+async def invite_to_chat(payload: dict):
+    """Send a chat invite to the peer with the given peer_id."""
+    if not _node or not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    peer_id = (payload or {}).get("peer_id", "").strip()
+    if not peer_id:
+        raise HTTPException(400, "peer_id is required")
+    if peer_id == _node.state.node_id:
+        raise HTTPException(400, "Cannot invite yourself")
+
+    target = await _resolve_peer_endpoint(peer_id)
+    if not target:
+        raise HTTPException(404, f"Peer {peer_id[:12]}... is not currently visible on the LAN")
+    ip, api_port, peer_name = target
+
+    # Refuse if there is already an accepted thread or an incoming invite from them
+    existing = await _local_store.db.get_chat_thread(peer_id)
+    if existing and existing["status"] == "accepted":
+        return {"status": "noop", "reason": "thread already accepted",
+                "thread": _enrich_thread(existing, {peer_id})}
+    if existing and existing["status"] == "incoming_pending":
+        raise HTTPException(409, "This peer already invited you — accept their invite instead")
+
+    # Send the invite to the peer's HTTP API
+    try:
+        async with _httpx_chat.AsyncClient(timeout=CHAT_PEER_TIMEOUT) as client:
+            r = await client.post(
+                f"http://{ip}:{api_port}/peer/chat/invite", json=_self_ident()
+            )
+        if r.status_code >= 400:
+            raise HTTPException(502, f"Peer rejected invite: HTTP {r.status_code}")
+    except _httpx_chat.HTTPError as e:
+        raise HTTPException(502, f"Failed to reach peer: {e}")
+
+    # Store outgoing_pending locally
+    thread = await _local_store.db.upsert_chat_thread(
+        peer_id=peer_id, status="outgoing_pending",
+        invited_by_self=True, peer_name=peer_name,
+    )
+    logger.info(f"Sent chat invite to {peer_name} ({peer_id[:12]}...)")
+    return {"status": "sent", "thread": _enrich_thread(thread, {peer_id})}
+
+
+@router.post("/chats/{peer_id}/accept")
+async def accept_chat(peer_id: str):
+    """Accept an incoming chat invite from peer_id."""
+    if not _node or not _local_store:
+        raise HTTPException(503, "Node not initialized")
+
+    thread = await _local_store.db.get_chat_thread(peer_id)
+    if not thread:
+        raise HTTPException(404, "No invite from this peer")
+    if thread["status"] != "incoming_pending":
+        raise HTTPException(409, f"Cannot accept — thread is in '{thread['status']}'")
+
+    target = await _resolve_peer_endpoint(peer_id)
+    if not target:
+        raise HTTPException(503, "Peer is offline — try again when they are visible")
+    ip, api_port, _ = target
+
+    try:
+        async with _httpx_chat.AsyncClient(timeout=CHAT_PEER_TIMEOUT) as client:
+            r = await client.post(
+                f"http://{ip}:{api_port}/peer/chat/accept", json=_self_ident()
+            )
+        if r.status_code >= 400:
+            raise HTTPException(502, f"Peer did not acknowledge: HTTP {r.status_code}")
+    except _httpx_chat.HTTPError as e:
+        raise HTTPException(502, f"Failed to reach peer: {e}")
+
+    updated = await _local_store.db.upsert_chat_thread(
+        peer_id=peer_id, status="accepted",
+        invited_by_self=False, peer_name=thread["peer_name"],
+    )
+    logger.info(f"Accepted chat invite from {peer_id[:12]}...")
+    return {"status": "accepted", "thread": _enrich_thread(updated, {peer_id})}
+
+
+@router.post("/chats/{peer_id}/reject")
+async def reject_chat(peer_id: str):
+    """Reject an incoming chat invite from peer_id (best-effort notify peer)."""
+    if not _node or not _local_store:
+        raise HTTPException(503, "Node not initialized")
+
+    thread = await _local_store.db.get_chat_thread(peer_id)
+    if not thread:
+        raise HTTPException(404, "No invite from this peer")
+    if thread["status"] != "incoming_pending":
+        raise HTTPException(409, f"Cannot reject — thread is in '{thread['status']}'")
+
+    # Try to notify the peer; do not fail the local action if the peer is unreachable
+    target = await _resolve_peer_endpoint(peer_id)
+    if target:
+        ip, api_port, _ = target
+        try:
+            async with _httpx_chat.AsyncClient(timeout=CHAT_PEER_TIMEOUT) as client:
+                await client.post(
+                    f"http://{ip}:{api_port}/peer/chat/reject", json=_self_ident()
+                )
+        except Exception:
+            pass
+
+    await _local_store.db.delete_chat_thread(peer_id)
+    return {"status": "rejected"}
+
+
+@router.post("/chats/{peer_id}/messages")
+async def send_chat_message(peer_id: str, payload: dict):
+    """Send a 1:1 message in an accepted thread."""
+    if not _node or not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    body = (payload or {}).get("text", "").strip()
+    if not body:
+        raise HTTPException(400, "text is required")
+
+    thread = await _local_store.db.get_chat_thread(peer_id)
+    if not thread or thread["status"] != "accepted":
+        raise HTTPException(409, "Thread is not accepted yet")
+
+    target = await _resolve_peer_endpoint(peer_id)
+    if not target:
+        raise HTTPException(503, "Peer is offline — message not delivered")
+    ip, api_port, _ = target
+
+    try:
+        async with _httpx_chat.AsyncClient(timeout=CHAT_PEER_TIMEOUT) as client:
+            r = await client.post(
+                f"http://{ip}:{api_port}/peer/chat/message",
+                json={**_self_ident(), "body": body},
+            )
+        if r.status_code >= 400:
+            raise HTTPException(502, f"Peer rejected message: HTTP {r.status_code}")
+    except _httpx_chat.HTTPError as e:
+        raise HTTPException(502, f"Failed to reach peer: {e}")
+
+    msg = await _local_store.db.append_chat_message(peer_id, from_self=True, body=body)
+    return {"status": "sent", "message": msg}
+
+
+@router.get("/chats/{peer_id}/messages")
+async def get_chat_messages(peer_id: str, limit: int = 500):
+    """Return the local message log for a thread, oldest first."""
+    if not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    thread = await _local_store.db.get_chat_thread(peer_id)
+    if not thread:
+        raise HTTPException(404, "Thread not found")
+    msgs = await _local_store.db.get_chat_messages(peer_id, limit=limit)
+    return {"thread": thread, "messages": msgs}
+
+
+@router.delete("/chats/{peer_id}")
+async def delete_chat(peer_id: str):
+    """Delete a thread + all its messages (local-only; peer keeps theirs)."""
+    if not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    ok = await _local_store.db.delete_chat_thread(peer_id)
+    if not ok:
+        raise HTTPException(404, "Thread not found")
+    return {"status": "deleted"}
+
+
+# ── Peer-to-peer endpoints (called by other nodes) ─────────────────
+
+@router.post("/peer/chat/invite")
+async def peer_chat_invite(payload: dict):
+    """Receive a chat invite from another node."""
+    if not _node or not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    sender_id = (payload or {}).get("from_node_id", "").strip()
+    sender_name = (payload or {}).get("from_name", "").strip()
+    if not sender_id:
+        raise HTTPException(400, "from_node_id required")
+
+    existing = await _local_store.db.get_chat_thread(sender_id)
+    # If we already accepted this peer, treat invite as a no-op refresh
+    if existing and existing["status"] == "accepted":
+        return {"status": "already_accepted"}
+    # If we already invited THEM and now they invited us, auto-accept (mutual invite)
+    if existing and existing["status"] == "outgoing_pending":
+        await _local_store.db.upsert_chat_thread(
+            peer_id=sender_id, status="accepted",
+            invited_by_self=True, peer_name=sender_name,
+        )
+        logger.info(f"Mutual invite — auto-accepted with {sender_id[:12]}...")
+        return {"status": "auto_accepted"}
+
+    await _local_store.db.upsert_chat_thread(
+        peer_id=sender_id, status="incoming_pending",
+        invited_by_self=False, peer_name=sender_name,
+    )
+    logger.info(f"Received chat invite from {sender_name} ({sender_id[:12]}...)")
+    return {"status": "received"}
+
+
+@router.post("/peer/chat/accept")
+async def peer_chat_accept(payload: dict):
+    """A peer we invited has accepted — flip our local thread to accepted."""
+    if not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    sender_id = (payload or {}).get("from_node_id", "").strip()
+    sender_name = (payload or {}).get("from_name", "").strip()
+    if not sender_id:
+        raise HTTPException(400, "from_node_id required")
+
+    existing = await _local_store.db.get_chat_thread(sender_id)
+    if not existing or existing["status"] != "outgoing_pending":
+        # Peer is acknowledging an invite we don't remember; accept it anyway so
+        # we don't desync if our DB was wiped — this is a low-risk LAN tool.
+        pass
+    await _local_store.db.upsert_chat_thread(
+        peer_id=sender_id, status="accepted",
+        invited_by_self=True, peer_name=sender_name,
+    )
+    logger.info(f"Peer {sender_name} ({sender_id[:12]}...) accepted our invite")
+    return {"status": "accepted"}
+
+
+@router.post("/peer/chat/reject")
+async def peer_chat_reject(payload: dict):
+    """A peer rejected our invite — remove the local thread."""
+    if not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    sender_id = (payload or {}).get("from_node_id", "").strip()
+    if not sender_id:
+        raise HTTPException(400, "from_node_id required")
+    await _local_store.db.delete_chat_thread(sender_id)
+    return {"status": "removed"}
+
+
+@router.post("/peer/chat/message")
+async def peer_chat_message(payload: dict):
+    """Receive a 1:1 chat message from a peer in an accepted thread."""
+    if not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    sender_id = (payload or {}).get("from_node_id", "").strip()
+    sender_name = (payload or {}).get("from_name", "").strip()
+    body = (payload or {}).get("body", "").strip()
+    if not sender_id or not body:
+        raise HTTPException(400, "from_node_id and body required")
+
+    thread = await _local_store.db.get_chat_thread(sender_id)
+    if not thread or thread["status"] != "accepted":
+        # Reject silently from sender's perspective so they cannot probe our state
+        raise HTTPException(403, "No accepted thread with this peer")
+
+    # Keep peer_name fresh in case it changed
+    if sender_name and sender_name != thread.get("peer_name", ""):
+        await _local_store.db.upsert_chat_thread(
+            peer_id=sender_id, status="accepted",
+            invited_by_self=bool(thread["invited_by_self"]), peer_name=sender_name,
+        )
+
+    msg = await _local_store.db.append_chat_message(sender_id, from_self=False, body=body)
+    return {"status": "received", "message": msg}

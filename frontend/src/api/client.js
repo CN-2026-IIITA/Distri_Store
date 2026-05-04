@@ -155,4 +155,41 @@ export async function clearCompletedDownloads() {
   return data
 }
 
+// ── Phase 24A: 1:1 Chats (invite + accept + send) ─────────────
+
+export async function fetchChats() {
+  const { data } = await api.get('/chats')
+  return data
+}
+
+export async function inviteChat(peerId) {
+  const { data } = await api.post('/chats/invite', { peer_id: peerId })
+  return data
+}
+
+export async function acceptChat(peerId) {
+  const { data } = await api.post(`/chats/${peerId}/accept`)
+  return data
+}
+
+export async function rejectChat(peerId) {
+  const { data } = await api.post(`/chats/${peerId}/reject`)
+  return data
+}
+
+export async function deleteChat(peerId) {
+  const { data } = await api.delete(`/chats/${peerId}`)
+  return data
+}
+
+export async function sendChatMessage(peerId, text) {
+  const { data } = await api.post(`/chats/${peerId}/messages`, { text })
+  return data
+}
+
+export async function fetchChatMessages(peerId) {
+  const { data } = await api.get(`/chats/${peerId}/messages`)
+  return data
+}
+
 export default api
