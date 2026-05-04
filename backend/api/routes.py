@@ -1562,6 +1562,89 @@ async def peer_share_receipt(payload: dict):
     return {"status": "received", "id": rec["id"]}
 
 
+# ── Phase 25B: Proof-of-Storage Audits ──────────────────────────────
+#
+# Responder: any peer can ask us to prove we hold a chunk by giving us a
+# random nonce. We reply with sha256(chunk_bytes || nonce). If we deleted
+# the chunk to free space, we cannot fake the proof (collision-resistant).
+#
+# Auditor: a periodic background task picks a random alive peer + a chunk
+# we hold locally that the routing table says they should also have, sends
+# the challenge, and stores pass/fail in SQLite. UI surfaces the scorecard.
+
+@router.post("/peer/audit/{chunk_hash}")
+async def peer_audit(chunk_hash: str, payload: dict):
+    """Audit responder — return SHA256(chunk_bytes || nonce) if we hold the chunk."""
+    if not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    nonce_hex = (payload or {}).get("nonce", "").strip()
+    if not nonce_hex:
+        raise HTTPException(400, "nonce required")
+    data = _local_store.load_chunk(chunk_hash)
+    if data is None:
+        raise HTTPException(404, f"Chunk not held: {chunk_hash[:16]}...")
+    from backend.strategies.audit import compute_proof
+    return {"proof": compute_proof(data, nonce_hex)}
+
+
+@router.post("/audit/run/{peer_id}")
+async def run_audit_now(peer_id: str):
+    """Manually trigger one audit against the given peer."""
+    if not _node or not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    from backend.strategies.audit import run_one_audit
+    rec = await run_one_audit(
+        _node.state, _routing, _local_store, _local_store.db,
+        _httpx_chat.AsyncClient, target_peer_id=peer_id,
+    )
+    if rec is None:
+        raise HTTPException(409, "No eligible (peer, chunk) pair to audit yet")
+    return {"audit": rec}
+
+
+@router.post("/audit/run")
+async def run_audit_random():
+    """Trigger one audit against a randomly-picked alive peer."""
+    if not _node or not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    from backend.strategies.audit import run_one_audit
+    rec = await run_one_audit(
+        _node.state, _routing, _local_store, _local_store.db,
+        _httpx_chat.AsyncClient,
+    )
+    if rec is None:
+        raise HTTPException(409, "No eligible (peer, chunk) pair to audit yet")
+    return {"audit": rec}
+
+
+@router.get("/audit/log")
+async def audit_log(limit: int = 100, peer_id: str = ""):
+    """Recent audit results, most-recent first. Filter by peer_id with ?peer_id=..."""
+    if not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    rows = await _local_store.db.get_audit_log(limit=limit, peer_id=peer_id)
+    return {"log": rows}
+
+
+@router.get("/audit/reputation")
+async def audit_reputation():
+    """Per-peer reputation: passed / failed / errors / last audit timestamp."""
+    if not _local_store or not _node:
+        raise HTTPException(503, "Node not initialized")
+    rows = await _local_store.db.get_audit_reputation()
+    alive = await _node.state.get_alive_peers()
+    out = []
+    for r in rows:
+        total = max(int(r["total"] or 0), 1)
+        passed = int(r["passed"] or 0)
+        out.append({
+            **r,
+            "online": r["peer_id"] in alive,
+            "pass_rate": round(passed / total, 3),
+        })
+    return {"reputation": out}
+
+
 @router.post("/peer/share/notify")
 async def peer_share_notify(payload: dict):
     """Receive a file-share notification from another peer.

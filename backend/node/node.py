@@ -29,6 +29,9 @@ class DistriNode:
         self.conn_mgr = ConnectionManager(self.state, message_handler=self._handle_message)
         self._discovery_protocol = None
         self._tasks: list[asyncio.Task] = []
+        # Phase 25B: local store wired in via start(local_store=...) so the
+        # STORE_CHUNK handler can actually persist incoming replication payloads.
+        self._local_store = None
 
     async def _handle_message(self, conn, msg: dict) -> None:
         """Route incoming TCP messages to the appropriate handler."""
@@ -38,7 +41,29 @@ class DistriNode:
             # Phase 19: Route chat messages to WebSocket bridge
             from backend.api.routes import handle_tcp_chat
             await handle_tcp_chat(msg)
-        elif msg_type in ("STORE_CHUNK", "GET_CHUNK", "CHUNK_ACK", "STORE_ACK",
+        elif msg_type == "STORE_CHUNK":
+            # Phase 25B: actually persist chunks pushed by replication peers.
+            # Without this, k-copy replication silently no-ops (peer ACKs but
+            # never saves), and proof-of-storage audits always fail.
+            chunk_hash = msg.get("chunk_hash", "")
+            chunk_data = msg.get("chunk_data", b"")
+            file_hash = msg.get("file_hash", "")
+            if not chunk_hash or not chunk_data or self._local_store is None:
+                logger.warning(
+                    f"STORE_CHUNK from {conn.peer_id[:12]}... missing fields "
+                    f"or no local_store wired"
+                )
+            else:
+                try:
+                    self._local_store.save_chunk(chunk_hash, chunk_data)
+                    await self.state.register_chunk(chunk_hash, chunk_hash)
+                    logger.info(
+                        f"Stored chunk {chunk_hash[:12]}... ({len(chunk_data)}B) "
+                        f"from {conn.peer_id[:12]}... (file {file_hash[:12]}...)"
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to save chunk {chunk_hash[:12]}...: {e}")
+        elif msg_type in ("GET_CHUNK", "CHUNK_ACK", "STORE_ACK",
                           "CHUNK_DATA", "FIND_NODE", "FIND_RESULT", "PING", "PONG"):
             logger.debug(f"TCP msg from {conn.peer_id[:12]}...: {msg_type}")
         else:
@@ -47,6 +72,9 @@ class DistriNode:
     async def start(self, local_store=None) -> None:
         """Boot the node: TCP server + UDP discovery + peer connector."""
         net = self.config.network
+
+        # Phase 25B: stash local_store so the STORE_CHUNK handler can persist
+        self._local_store = local_store
 
         # 1. Start TCP server (port=0 lets OS assign a free port)
         await self.conn_mgr.start_server("0.0.0.0", net.tcp_port)

@@ -248,4 +248,27 @@ export async function fetchShareReceipts() {
   return data.receipts || []
 }
 
+// ── Phase 25B: Proof-of-Storage Audits ────────────────────────
+
+export async function fetchAuditReputation() {
+  const { data } = await api.get('/audit/reputation')
+  return data.reputation || []
+}
+
+export async function fetchAuditLog(limit = 100, peerId = '') {
+  const params = peerId ? { limit, peer_id: peerId } : { limit }
+  const { data } = await api.get('/audit/log', { params })
+  return data.log || []
+}
+
+export async function runAuditAgainst(peerId) {
+  const { data } = await api.post(`/audit/run/${peerId}`)
+  return data.audit
+}
+
+export async function runAuditRandom() {
+  const { data } = await api.post('/audit/run')
+  return data.audit
+}
+
 export default api

@@ -122,6 +122,25 @@ class NodeDatabase:
             "CREATE INDEX IF NOT EXISTS idx_share_receipts_file "
             "ON share_receipts(file_hash, received_at DESC)"
         )
+        # Phase 25B: proof-of-storage audit log — every audit we ran against a peer
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS peer_audits (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                peer_id         TEXT NOT NULL,
+                peer_name       TEXT DEFAULT '',
+                chunk_hash      TEXT NOT NULL,
+                challenged_at   REAL NOT NULL,
+                nonce           TEXT NOT NULL,
+                proof_received  TEXT DEFAULT '',
+                expected_proof  TEXT DEFAULT '',
+                result          TEXT NOT NULL,
+                error           TEXT DEFAULT ''
+            )
+        """)
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_audits_peer "
+            "ON peer_audits(peer_id, challenged_at DESC)"
+        )
         # Phase 18: migrate existing tables that lack the compression column
         # Phase 23: migrate existing tables that lack erasure-mode columns
         for ddl in (
@@ -373,6 +392,63 @@ class NodeDatabase:
         )
         return [dict(row) for row in cur.fetchall()]
 
+    # ── Phase 25B: proof-of-storage audit log ──────────────────────
+
+    def _insert_audit_sync(self, peer_id: str, peer_name: str, chunk_hash: str,
+                            nonce: str, proof_received: str, expected_proof: str,
+                            result: str, error: str = "") -> dict:
+        now = time.time()
+        cur = self._conn.execute(
+            """INSERT INTO peer_audits
+               (peer_id, peer_name, chunk_hash, challenged_at, nonce,
+                proof_received, expected_proof, result, error)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (peer_id, peer_name, chunk_hash, now, nonce,
+             proof_received, expected_proof, result, error),
+        )
+        self._conn.commit()
+        return {
+            "id": cur.lastrowid,
+            "peer_id": peer_id,
+            "peer_name": peer_name,
+            "chunk_hash": chunk_hash,
+            "challenged_at": now,
+            "nonce": nonce,
+            "proof_received": proof_received,
+            "expected_proof": expected_proof,
+            "result": result,
+            "error": error,
+        }
+
+    def _get_audit_log_sync(self, limit: int = 200, peer_id: str = "") -> list[dict]:
+        if peer_id:
+            cur = self._conn.execute(
+                """SELECT * FROM peer_audits WHERE peer_id = ?
+                   ORDER BY challenged_at DESC LIMIT ?""",
+                (peer_id, limit),
+            )
+        else:
+            cur = self._conn.execute(
+                "SELECT * FROM peer_audits ORDER BY challenged_at DESC LIMIT ?",
+                (limit,),
+            )
+        return [dict(row) for row in cur.fetchall()]
+
+    def _get_audit_reputation_sync(self) -> list[dict]:
+        cur = self._conn.execute(
+            """SELECT peer_id,
+                      MAX(peer_name) AS peer_name,
+                      SUM(CASE WHEN result = 'pass' THEN 1 ELSE 0 END) AS passed,
+                      SUM(CASE WHEN result = 'fail' THEN 1 ELSE 0 END) AS failed,
+                      SUM(CASE WHEN result NOT IN ('pass','fail') THEN 1 ELSE 0 END) AS errors,
+                      MAX(challenged_at) AS last_audit_at,
+                      COUNT(*) AS total
+               FROM peer_audits
+               GROUP BY peer_id
+               ORDER BY last_audit_at DESC"""
+        )
+        return [dict(row) for row in cur.fetchall()]
+
     # ── Async wrappers ─────────────────────────────────────────────
 
     async def save_manifest(self, file_hash: str, manifest_dict: dict) -> None:
@@ -443,6 +519,22 @@ class NodeDatabase:
 
     async def get_all_share_receipts(self) -> list[dict]:
         return await asyncio.to_thread(self._get_all_share_receipts_sync)
+
+    # Phase 25B: audit-log async wrappers
+    async def insert_audit(self, peer_id: str, peer_name: str, chunk_hash: str,
+                            nonce: str, proof_received: str, expected_proof: str,
+                            result: str, error: str = "") -> dict:
+        return await asyncio.to_thread(
+            self._insert_audit_sync,
+            peer_id, peer_name, chunk_hash, nonce,
+            proof_received, expected_proof, result, error,
+        )
+
+    async def get_audit_log(self, limit: int = 200, peer_id: str = "") -> list[dict]:
+        return await asyncio.to_thread(self._get_audit_log_sync, limit, peer_id)
+
+    async def get_audit_reputation(self) -> list[dict]:
+        return await asyncio.to_thread(self._get_audit_reputation_sync)
 
     def close(self) -> None:
         self._conn.close()
