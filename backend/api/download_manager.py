@@ -40,9 +40,10 @@ class DownloadState:
     completed_chunks: list        # Indices already on disk
     started_at: float = 0.0
     updated_at: float = 0.0
-    status: str = "pending"       # pending | downloading | paused | completed | error
+    status: str = "pending"       # pending | downloading | finalizing | paused | completed | error
     error_message: str = ""
     password: str = ""            # NOT persisted — set at runtime only
+    output_path: str = ""         # Path to the merged output file (for browser download)
 
     @property
     def progress(self) -> float:
@@ -68,6 +69,7 @@ class DownloadState:
             "updated_at": self.updated_at,
             "status": self.status,
             "error_message": self.error_message,
+            "output_path": self.output_path,
         }
 
     def to_resume_dict(self) -> dict:
@@ -192,25 +194,31 @@ class DownloadManager:
 
         manifest = FileManifest.from_dict(manifest_dict)
 
-        # Check for existing resume state
+        # Check for existing download in memory or on disk
         existing = self._downloads.get(file_hash) or self._load_resume(file_hash)
 
-        if existing and existing.status in ("downloading",):
+        if existing and existing.status == "downloading":
             logger.warning(f"Download already active: {file_hash[:12]}...")
             return existing
 
-        if existing and existing.missing_chunks:
-            # Resume from existing state
+        if existing and existing.status == "completed":
+            # Already completed — don't restart
+            logger.info(f"Download already completed: {file_hash[:12]}...")
+            return existing
+
+        if existing and len(existing.missing_chunks) > 0:
+            # Resume from existing state — has remaining work
             state = existing
             state.status = "downloading"
             state.password = password
+            state.error_message = ""
             logger.info(
                 f"Resuming download '{state.filename}': "
                 f"{len(state.missing_chunks)} chunks remaining "
                 f"({state.progress}% complete)"
             )
         else:
-            # Fresh download
+            # Fresh download (or previous had 0 missing = needs re-run from scratch)
             all_indices = list(range(len(manifest.chunks)))
             state = DownloadState(
                 file_hash=file_hash,
@@ -298,6 +306,9 @@ class DownloadManager:
         if state.status == "downloading":
             return state
 
+        if state.status == "completed":
+            return state
+
         # Reload manifest to get chunk info
         manifest_dict = local_store.load_manifest(file_hash)
         if not manifest_dict:
@@ -308,6 +319,7 @@ class DownloadManager:
 
         state.status = "downloading"
         state.password = password
+        state.error_message = ""
         self._downloads[file_hash] = state
 
         cancel_event = asyncio.Event()
@@ -338,24 +350,11 @@ class DownloadManager:
         cancel_event: asyncio.Event,
     ):
         """
-        Async worker that downloads missing chunks, decrypts them,
-        and writes to a temp file using seek() for out-of-order support.
+        Async worker that downloads missing chunks, caches them locally,
+        then performs a final merge (decrypt+decompress) once all chunks
+        are available.
         """
-        from backend.file_engine.crypto import (
-            derive_key, SALT_SIZE,
-            _worker_decrypt_keyed, _worker_decrypt_keyed_nocompress,
-        )
-
-        loop = asyncio.get_running_loop()
-        from backend.file_engine.crypto import _get_pool
-        pool = _get_pool()
-
         ordered_chunks = sorted(manifest.chunks, key=lambda c: c.index)
-        temp_file = str(self.storage_dir / f"resume_{file_hash}.bin")
-
-        # Concurrency semaphore for parallel chunk fetching
-        semaphore = asyncio.Semaphore(5)
-        dec_key = None
         chunks_since_flush = 0
 
         try:
@@ -371,40 +370,45 @@ class DownloadManager:
                     logger.debug(f"Download paused at chunk {info.index}")
                     return
 
-                async with semaphore:
-                    try:
-                        # Fetch the encrypted chunk
-                        data = await load_chunk_fn(info.chunk_hash)
+                try:
+                    # Fetch the chunk (local store or peer fallback)
+                    data = await load_chunk_fn(info.chunk_hash)
 
-                        # Cache chunk locally for future use
-                        if not local_store.has_chunk(info.chunk_hash):
-                            local_store.save_chunk(info.chunk_hash, data)
+                    # Cache chunk locally for future use
+                    if not local_store.has_chunk(info.chunk_hash):
+                        local_store.save_chunk(info.chunk_hash, data)
 
-                        # Mark chunk as completed
-                        if info.index in state.missing_chunks:
-                            state.missing_chunks.remove(info.index)
-                        if info.index not in state.completed_chunks:
-                            state.completed_chunks.append(info.index)
+                    # Mark chunk as completed
+                    if info.index in state.missing_chunks:
+                        state.missing_chunks.remove(info.index)
+                    if info.index not in state.completed_chunks:
+                        state.completed_chunks.append(info.index)
 
-                        chunks_since_flush += 1
+                    chunks_since_flush += 1
 
-                        # Periodic flush of resume state
-                        if chunks_since_flush >= FLUSH_INTERVAL:
-                            self._save_resume(state)
-                            chunks_since_flush = 0
-
-                    except Exception as e:
-                        logger.error(
-                            f"Failed to download chunk {info.index} "
-                            f"({info.chunk_hash[:12]}...): {e}"
-                        )
-                        # Save progress before failing
+                    # Periodic flush of resume state
+                    if chunks_since_flush >= FLUSH_INTERVAL:
                         self._save_resume(state)
-                        state.status = "error"
-                        state.error_message = str(e)
-                        return
+                        chunks_since_flush = 0
+
+                    # Yield control to the event loop so polling can respond
+                    # This is critical: without this, the event loop is starved
+                    # and the frontend never sees progress updates.
+                    await asyncio.sleep(0)
+
+                except Exception as e:
+                    logger.error(
+                        f"Failed to download chunk {info.index} "
+                        f"({info.chunk_hash[:12]}...): {e}"
+                    )
+                    # Save progress before failing
+                    self._save_resume(state)
+                    state.status = "error"
+                    state.error_message = str(e)
+                    return
 
             # All chunks downloaded — now merge to final file
+            state.status = "finalizing"
             self._save_resume(state)
             logger.info(
                 f"All chunks downloaded for '{state.filename}', "
@@ -413,7 +417,7 @@ class DownloadManager:
 
             # Final merge: load all chunks in order, decrypt, write
             await self._final_merge(
-                file_hash, manifest, state, local_store, pool, loop
+                file_hash, manifest, state, local_store
             )
 
         except asyncio.CancelledError:
@@ -428,14 +432,14 @@ class DownloadManager:
             self._save_resume(state)
             logger.error(f"Download error for {file_hash[:12]}...: {e}")
 
-    async def _final_merge(self, file_hash, manifest, state, local_store, pool, loop):
+    async def _final_merge(self, file_hash, manifest, state, local_store):
         """
         Perform the final decrypt+decompress merge once all chunks are downloaded.
         Uses the existing pipeline_merge_to_disk for consistency.
         """
         from backend.file_engine.pipeline import pipeline_merge_to_disk
 
-        output_path = str(self.storage_dir / f"temp_{file_hash[:16]}.bin")
+        output_path = str(self.storage_dir / f"dl_{file_hash[:16]}_{manifest.original_filename}")
 
         async def load_fn(chunk_hash: str) -> bytes:
             data = local_store.load_chunk(chunk_hash)
@@ -448,13 +452,16 @@ class DownloadManager:
                 manifest, load_fn, output_path, password=state.password
             )
             state.status = "completed"
+            state.output_path = output_path
             state.updated_at = time.time()
+            # Don't delete resume file yet — keep it so UI can show "completed"
+            # It will be cleaned up when the user clears completed downloads.
             self._save_resume(state)
-            self._delete_resume(file_hash)
 
             logger.info(
                 f"Download complete: '{state.filename}' "
-                f"({state.total_chunks} chunks, {state.total_size} bytes)"
+                f"({state.total_chunks} chunks, {state.total_size} bytes) "
+                f"-> {output_path}"
             )
 
         except Exception as e:
@@ -477,14 +484,37 @@ class DownloadManager:
             for fh, state in self._downloads.items()
         }
 
+    def clear_specific_completed(self, file_hash: str):
+        """Remove a specific download from the tracker and clean up its file."""
+        state = self._downloads.get(file_hash)
+        if state:
+            self._delete_resume(file_hash)
+            if state.output_path and os.path.exists(state.output_path):
+                try:
+                    os.unlink(state.output_path)
+                except Exception:
+                    pass
+            self._downloads.pop(file_hash, None)
+            self._tasks.pop(file_hash, None)
+            self._cancel_events.pop(file_hash, None)
+
     def clear_completed(self):
-        """Remove completed downloads from the tracker."""
+        """Remove completed downloads from the tracker and clean up files."""
         to_remove = [
             fh for fh, s in self._downloads.items()
             if s.status in ("completed", "error")
         ]
         for fh in to_remove:
+            state = self._downloads.get(fh)
+            # Clean up the resume file
+            self._delete_resume(fh)
+            # Clean up the merged output file for errors (keep completed)
+            if state and state.status == "error" and state.output_path:
+                try:
+                    if os.path.exists(state.output_path):
+                        os.unlink(state.output_path)
+                except Exception:
+                    pass
             self._downloads.pop(fh, None)
             self._tasks.pop(fh, None)
             self._cancel_events.pop(fh, None)
-

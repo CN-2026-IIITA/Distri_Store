@@ -2,17 +2,18 @@
  * ActiveDownloads — Phase 21: Resumable download progress tracker.
  *
  * Displays active, paused, and completed downloads with progress bars
- * and Pause / Resume controls. Includes password prompt for encrypted resumes.
+ * and Pause / Resume / Save controls. Includes password prompt for encrypted resumes.
  */
 
 import { useState } from 'react'
-import { Pause, Play, X, Download, CheckCircle, AlertCircle, Loader, Lock, KeyRound } from 'lucide-react'
-import { pauseDownload, resumeDownload, clearCompletedDownloads } from '../../api/client'
+import { Pause, Play, X, Download, CheckCircle, AlertCircle, Loader, KeyRound, FileDown } from 'lucide-react'
+import { pauseDownload, resumeDownload, clearCompletedDownloads, downloadCompletedFile } from '../../api/client'
 import useNetworkStore from '../../store/useNetworkStore'
 import Card from '../ui/Card'
 
 const STATUS_CONFIG = {
   downloading: { icon: Loader, color: 'var(--accent-cyan)', label: 'Downloading' },
+  finalizing:  { icon: Loader, color: 'var(--accent-purple)', label: 'Merging...' },
   paused:      { icon: Pause, color: 'var(--accent-amber)', label: 'Paused' },
   completed:   { icon: CheckCircle, color: 'var(--accent-green)', label: 'Completed' },
   error:       { icon: AlertCircle, color: 'var(--accent-rose)', label: 'Error' },
@@ -65,6 +66,14 @@ export default function ActiveDownloads() {
     setResumePassword('')
   }
 
+  const handleSaveFile = (fileHash) => {
+    try {
+      downloadCompletedFile(fileHash)
+    } catch (e) {
+      console.error('Save file failed:', e)
+    }
+  }
+
   const handleClear = async () => {
     try {
       await clearCompletedDownloads()
@@ -92,6 +101,7 @@ export default function ActiveDownloads() {
             const StatusIcon = cfg.icon
             const isActive = dl.status === 'downloading'
             const isPaused = dl.status === 'paused'
+            const isCompleted = dl.status === 'completed'
             const isLoading = loading[fileHash]
 
             return (
@@ -129,6 +139,16 @@ export default function ActiveDownloads() {
                         title="Resume download"
                       >
                         <Play size={14} /> Resume
+                      </button>
+                    )}
+                    {isCompleted && dl.output_path && (
+                      <button
+                        className="download-ctrl-btn download-resume-btn"
+                        onClick={() => handleSaveFile(fileHash)}
+                        disabled={isLoading === 'saving'}
+                        title="Save the completed file"
+                      >
+                        <FileDown size={14} /> {isLoading === 'saving' ? 'Saving...' : 'Save File'}
                       </button>
                     )}
                   </div>

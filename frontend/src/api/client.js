@@ -155,6 +155,21 @@ export async function clearCompletedDownloads() {
   return data
 }
 
+/**
+ * Phase 21: Fetch the merged file from a completed resumable download.
+ * Uses native browser navigation to prevent buffering huge files in memory.
+ */
+export function downloadCompletedFile(fileHash) {
+  const url = `${API_BASE}/download/${fileHash}/file`
+  const a = document.createElement('a')
+  a.href = url
+  // The server's Content-Disposition header will provide the correct filename
+  a.download = ''
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+}
+
 // ── Phase 24A: 1:1 Chats (invite + accept + send) ─────────────
 
 export async function fetchChats() {
