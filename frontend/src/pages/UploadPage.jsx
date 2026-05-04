@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react'
-import { Upload, Lock, FileUp } from 'lucide-react'
+import { Upload, Lock, FileUp, CheckCircle2 } from 'lucide-react'
 import { uploadFile } from '../api/client'
 import useNetworkStore from '../store/useNetworkStore'
 import Card from '../components/ui/Card'
@@ -51,7 +51,7 @@ export default function UploadPage() {
           onDrop={(e) => { e.preventDefault(); setDragActive(false); setFile(e.dataTransfer.files?.[0] || null) }}
           onClick={() => document.getElementById('file-input').click()}
         >
-          <div className="drop-zone-icon">{file ? '✅' : <FileUp size={32} />}</div>
+          <div className="drop-zone-icon">{file ? <CheckCircle2 size={36} /> : <FileUp size={36} />}</div>
           <div className="drop-zone-text">{file ? file.name : 'Drop file here or click to browse'}</div>
           <div className="drop-zone-hint">{file ? formatBytes(file.size) : 'AES-256-GCM encrypted'}</div>
           <input id="file-input" type="file" style={{ display: 'none' }} onChange={(e) => setFile(e.target.files?.[0] || null)} />
@@ -65,14 +65,14 @@ export default function UploadPage() {
 
         {/* Upload Button */}
         <Button variant="primary" loading={uploading} disabled={!file} onClick={handleUpload}>
-          ⬆️ Upload File
+          Upload file
         </Button>
 
         {/* Success */}
         {result && (
           <div className="alert alert-success">
             <div style={{ flex: 1 }}>
-              <div>✅ Uploaded! {result.chunks} chunks · Merkle: {result.manifest?.merkle_root?.slice(0, 16)}...</div>
+              <div>Upload complete. {result.chunks} chunks · Merkle: {result.manifest?.merkle_root?.slice(0, 16)}...</div>
               <div className="upload-hash-row">
                 <span className="upload-hash-text">{result.file_hash}</span>
                 <CopyButton text={result.file_hash} label="Copy Hash" />
@@ -82,7 +82,7 @@ export default function UploadPage() {
         )}
 
         {/* Error */}
-        {error && <div className="alert alert-error">❌ {error}</div>}
+        {error && <div className="alert alert-error">{error}</div>}
       </div>
     </Card>
   )

@@ -4,7 +4,7 @@
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Globe, Clock, Database, HardDrive } from 'lucide-react'
+import { Globe, Clock, Database, HardDrive, Folder, FileText, Inbox, Eye, ArrowDownToLine, KeyRound } from 'lucide-react'
 import useNetworkStore from '../store/useNetworkStore'
 import StatCard from '../components/ui/StatCard'
 import Card from '../components/ui/Card'
@@ -56,10 +56,10 @@ export default function DashboardPage() {
     <div>
       {/* Stats Grid */}
       <div className="stats-grid">
-        <StatCard label="CONNECTED PEERS" value={peerCount} icon={<Globe size={20} />} color="var(--gradient-primary)" />
-        <StatCard label="UPTIME" value={formatUptime(status?.uptime_seconds || 0)} icon={<Clock size={20} />} color="linear-gradient(135deg, #06b6d4, #10b981)" />
-        <StatCard label="STORED CHUNKS" value={useNetworkStore.getState().getChunkCount()} icon={<Database size={20} />} color="linear-gradient(135deg, #f43f5e, #ec4899)" />
-        <StatCard label="STORAGE USED" value={formatBytes(useNetworkStore.getState().getStorageUsed())} icon={<HardDrive size={20} />} color="linear-gradient(135deg, #8b5cf6, #6366f1)" />
+        <StatCard label="Connected peers" value={peerCount} icon={<Globe size={20} />} color="var(--gradient-primary)" />
+        <StatCard label="Uptime" value={formatUptime(status?.uptime_seconds || 0)} icon={<Clock size={20} />} color="linear-gradient(135deg, #06b6d4, #10b981)" />
+        <StatCard label="Stored chunks" value={useNetworkStore.getState().getChunkCount()} icon={<Database size={20} />} color="linear-gradient(135deg, #f43f5e, #ec4899)" />
+        <StatCard label="Storage used" value={formatBytes(useNetworkStore.getState().getStorageUsed())} icon={<HardDrive size={20} />} color="linear-gradient(135deg, #8b5cf6, #6366f1)" />
       </div>
 
       {/* Network Visualizations */}
@@ -73,15 +73,18 @@ export default function DashboardPage() {
       <ActiveDownloads />
 
       {/* Stored Files */}
-      <Card title="Stored Files" icon="📁">
+      <Card title="Stored Files" icon={<Folder size={18} />}>
         {files.length === 0 ? (
-          <div className="empty-state"><div className="empty-state-icon">📭</div><p>No files stored yet</p></div>
+          <div className="empty-state">
+            <div className="empty-state-icon"><Inbox size={36} strokeWidth={1.5} /></div>
+            <p>No files stored yet</p>
+          </div>
         ) : (
           <div className="file-list">
             {files.map((f, i) => (
               <div className="file-item" key={i}>
                 <div className="file-info">
-                  <div className="file-icon">📄</div>
+                  <div className="file-icon"><FileText size={18} /></div>
                   <div>
                     <div className="file-name">{f.filename}</div>
                     <div className="file-meta">
@@ -100,7 +103,7 @@ export default function DashboardPage() {
                         onClick={() => handlePreview(f)}
                         title="Preview this file"
                       >
-                        👁️ Preview
+                        <Eye size={14} /> Preview
                       </button>
                     )}
                     <button
@@ -108,7 +111,7 @@ export default function DashboardPage() {
                       onClick={() => handleSelectFile(f.file_hash)}
                       title="Download this file"
                     >
-                      ⬇️ Download
+                      <ArrowDownToLine size={14} /> Download
                     </button>
                   </div>
                 </div>
@@ -122,7 +125,9 @@ export default function DashboardPage() {
       {showPasswordPrompt && (
         <div className="preview-overlay" onClick={() => setShowPasswordPrompt(null)}>
           <div className="preview-password-dialog" onClick={(e) => e.stopPropagation()}>
-            <h3>🔑 Enter decryption password</h3>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <KeyRound size={18} /> Enter decryption password
+            </h3>
             <p className="preview-password-filename">{showPasswordPrompt.filename}</p>
             <input
               type="password"

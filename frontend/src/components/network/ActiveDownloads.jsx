@@ -6,7 +6,7 @@
  */
 
 import { useState } from 'react'
-import { Pause, Play, X, Download, CheckCircle, AlertCircle, Loader, Lock } from 'lucide-react'
+import { Pause, Play, X, Download, CheckCircle, AlertCircle, Loader, Lock, KeyRound } from 'lucide-react'
 import { pauseDownload, resumeDownload, clearCompletedDownloads } from '../../api/client'
 import useNetworkStore from '../../store/useNetworkStore'
 import Card from '../ui/Card'
@@ -170,7 +170,9 @@ export default function ActiveDownloads() {
       {resumePrompt && (
         <div className="preview-overlay" onClick={() => setResumePrompt(null)}>
           <div className="preview-password-dialog" onClick={(e) => e.stopPropagation()}>
-            <h3>🔑 Resume — Enter password</h3>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <KeyRound size={18} /> Resume — Enter password
+            </h3>
             <p className="preview-password-filename">{resumePrompt.filename}</p>
             <input
               type="password"
