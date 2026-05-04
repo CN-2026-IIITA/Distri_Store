@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { Users, ArrowUpDown, Wifi, Heart } from 'lucide-react'
 import useNetworkStore from '../../store/useNetworkStore'
 import Card from '../ui/Card'
+import CopyButton from '../ui/CopyButton'
 
 export default function PeerTable() {
   const status = useNetworkStore((s) => s.status)
@@ -69,9 +70,12 @@ export default function PeerTable() {
             <tbody>
               {sorted.map((peer) => (
                 <tr key={peer.id}>
-                  <td>
-                    <span className="peer-name">{peer.name}</span>
-                    <span className="peer-id">{peer.id.slice(0, 12)}...</span>
+                  <td style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <span className="peer-name">{peer.name}</span>
+                      <span className="peer-id">{peer.id.slice(0, 12)}...</span>
+                    </div>
+                    <CopyButton text={peer.id} label="Copy ID" />
                   </td>
                   <td><code>{peer.host}:{peer.port}</code></td>
                   <td>
