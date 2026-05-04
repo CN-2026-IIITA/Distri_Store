@@ -3,9 +3,10 @@
  * Shows self node at center with peer connections radiating outward.
  */
 
-import { Network } from 'lucide-react'
+import { Network, Fingerprint } from 'lucide-react'
 import useNetworkStore from '../../store/useNetworkStore'
 import Card from '../ui/Card'
+import CopyButton from '../ui/CopyButton'
 
 export default function NetworkTopology() {
   const status = useNetworkStore((s) => s.status)
@@ -14,7 +15,11 @@ export default function NetworkTopology() {
   const cx = 400, cy = 180, r = 120
 
   return (
-    <Card title="Network Topology" icon={<Network size={18} />}>
+    <Card 
+      title="Network Topology" 
+      icon={<Network size={18} />}
+      action={self.id ? <CopyButton text={self.id} label="Copy Node ID" /> : null}
+    >
       <div className="topology-canvas">
         <svg viewBox="0 0 800 360">
           {/* Connection lines */}
