@@ -23,3 +23,6 @@ zstandard>=0.22.0
 
 # Phase 19: WebSocket support for swarm chat
 websockets>=12.0
+
+# Phase 23: Reed-Solomon erasure coding (any k of n shards reconstructs)
+zfec>=1.5.0

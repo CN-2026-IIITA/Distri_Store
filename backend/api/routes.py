@@ -103,8 +103,9 @@ async def upload_file(
     if not _node or not _local_store:
         raise HTTPException(503, "Node not initialized")
 
-    from backend.file_engine.chunker import chunk_file, FileManifest, get_optimal_chunk_size
+    from backend.file_engine.chunker import chunk_file, FileManifest, ShardInfo, get_optimal_chunk_size
     from backend.strategies.replication import ReplicationEngine
+    from backend.utils.config import get_config as _get_cfg
 
     # Save uploaded file to temp location
     tmp_dir = tempfile.mkdtemp()
@@ -122,10 +123,41 @@ async def upload_file(
         pwd = password if password else None
         manifest, chunks = chunk_file(tmp_path, chunk_size=opt_chunk_size, password=pwd)
 
-        # Store all chunks locally
-        for info, data in zip(manifest.chunks, chunks):
-            _local_store.save_chunk(info.chunk_hash, data)
-            await _node.state.register_chunk(info.chunk_hash, info.chunk_hash)
+        # ── Phase 23: Reed-Solomon erasure coding (opt-in) ─────────
+        cfg = _get_cfg()
+        erasure_mode = cfg.replication.mode == "erasure"
+        shards_per_chunk = []  # parallel to manifest.chunks; populated only in erasure mode
+
+        if erasure_mode:
+            from backend.strategies.erasure import encode_chunk
+            k_data, n_total = cfg.replication.erasure_k, cfg.replication.erasure_n
+
+            for info, data in zip(manifest.chunks, chunks):
+                encoded = encode_chunk(data, chunk_index=info.index, k=k_data, n=n_total)
+                # Save each shard locally (storage is shard-keyed by SHA-256, same as chunks)
+                for s in encoded.shards:
+                    _local_store.save_chunk(s.shard_hash, s.data)
+                    await _node.state.register_chunk(s.shard_hash, s.shard_hash)
+                # Attach shard metadata so the downloader can find them
+                info.shards = [
+                    ShardInfo(shard_index=s.shard_index, shard_hash=s.shard_hash, size=s.size)
+                    for s in encoded.shards
+                ]
+                shards_per_chunk.append(encoded.shards)
+
+            manifest.replication_mode = "erasure"
+            manifest.erasure_k = k_data
+            manifest.erasure_n = n_total
+            logger.info(
+                f"Erasure-encoded {len(chunks)} chunks into "
+                f"{len(chunks) * n_total} shards (k={k_data}, n={n_total}, "
+                f"overhead={n_total/k_data:.2f}x)"
+            )
+        else:
+            # k-copy mode: store the whole encrypted chunks locally
+            for info, data in zip(manifest.chunks, chunks):
+                _local_store.save_chunk(info.chunk_hash, data)
+                await _node.state.register_chunk(info.chunk_hash, info.chunk_hash)
 
         # Save manifest
         _local_store.save_manifest(manifest.file_hash, manifest.to_dict())
@@ -137,7 +169,10 @@ async def upload_file(
             engine = ReplicationEngine(
                 _node.state, _node.conn_mgr, _routing, _local_store
             )
-            replicated = await engine.replicate_chunks(manifest, chunks)
+            if erasure_mode:
+                replicated = await engine.replicate_shards(manifest, shards_per_chunk)
+            else:
+                replicated = await engine.replicate_chunks(manifest, chunks)
 
         logger.info(f"Uploaded '{file.filename}': {len(chunks)} chunks, hash={manifest.file_hash[:16]}...")
 
@@ -211,35 +246,45 @@ async def download_file(
     chunks = []
     peers = None  # Lazy-load peer list only if needed
 
+    async def _peer_fetch(target_hash: str):
+        """Fetch any chunk/shard hash from peers, returning bytes or None."""
+        nonlocal peers
+        if peers is None:
+            peers = await _node.state.get_alive_peers()
+        for _nid, peer in peers.items():
+            url = f"http://{peer.ip}:{peer.api_port}/chunk/{target_hash}"
+            try:
+                async with httpx.AsyncClient(timeout=30) as client:
+                    resp = await client.get(url)
+                if resp.status_code == 200:
+                    return resp.content
+            except Exception as e:
+                logger.debug(f"Peer {peer.ip} fetch {target_hash[:12]}... failed: {e}")
+                continue
+        return None
+
+    erasure_mode = manifest.replication_mode == "erasure"
+
     for info in manifest.chunks:
-        data = _local_store.load_chunk(info.chunk_hash)
-
-        if data is None:
-            # Not local — fetch from peers
-            if peers is None:
-                peers = await _node.state.get_alive_peers()
-
-            fetched = False
-            for nid, peer in peers.items():
-                chunk_url = f"http://{peer.ip}:{peer.api_port}/chunk/{info.chunk_hash}"
-                try:
-                    async with httpx.AsyncClient(timeout=30) as client:
-                        resp = await client.get(chunk_url)
-                    if resp.status_code == 200:
-                        data = resp.content
-                        # Cache chunk locally
-                        _local_store.save_chunk(info.chunk_hash, data)
-                        logger.debug(
-                            f"Fetched chunk {info.chunk_hash[:12]}... from {peer.name} ({peer.ip})"
-                        )
-                        fetched = True
-                        break
-                except Exception as e:
-                    logger.debug(f"Peer {peer.ip} chunk fetch failed: {e}")
-                    continue
-
-            if not fetched:
-                raise HTTPException(404, f"Chunk {info.chunk_hash[:16]}... not found on any node")
+        if erasure_mode and info.shards:
+            # Phase 23: reconstruct from any k of n Reed-Solomon shards
+            from backend.strategies.erasure import fetch_and_decode_chunk
+            try:
+                data = await fetch_and_decode_chunk(
+                    info, manifest.erasure_k, manifest.erasure_n,
+                    _local_store, _peer_fetch,
+                )
+            except ValueError as ve:
+                raise HTTPException(404, str(ve))
+        else:
+            # Whole-chunk path (k-copy mode)
+            data = _local_store.load_chunk(info.chunk_hash)
+            if data is None:
+                data = await _peer_fetch(info.chunk_hash)
+                if data is None:
+                    raise HTTPException(404, f"Chunk {info.chunk_hash[:16]}... not found on any node")
+                _local_store.save_chunk(info.chunk_hash, data)
+                logger.debug(f"Fetched chunk {info.chunk_hash[:12]}... from peer")
 
         chunks.append(data)
 
@@ -336,23 +381,44 @@ async def preview_file(
     if not media_type:
         media_type = "application/octet-stream"
 
-    # ── Chunk loader (local + peer fallback) ─────────────────────
-    async def load_chunk(chunk_hash: str) -> bytes:
-        data = _local_store.load_chunk(chunk_hash)
-        if data is not None:
-            return data
-        # Peer fallback
+    # ── Chunk loader (local + peer fallback, erasure-aware) ──────
+    erasure_mode = manifest.replication_mode == "erasure"
+    chunks_by_hash = {c.chunk_hash: c for c in manifest.chunks}
+
+    async def _peer_fetch_one(target_hash: str):
         import httpx
         peers = await _node.state.get_alive_peers()
-        for nid, peer in peers.items():
+        for _nid, peer in peers.items():
             try:
                 async with httpx.AsyncClient(timeout=30) as client:
-                    resp = await client.get(f"http://{peer.ip}:{peer.api_port}/chunk/{chunk_hash}")
+                    resp = await client.get(f"http://{peer.ip}:{peer.api_port}/chunk/{target_hash}")
                 if resp.status_code == 200:
-                    _local_store.save_chunk(chunk_hash, resp.content)
                     return resp.content
             except Exception:
                 continue
+        return None
+
+    async def load_chunk(chunk_hash: str) -> bytes:
+        # Erasure mode: reconstruct from any k of n shards.
+        if erasure_mode:
+            info = chunks_by_hash.get(chunk_hash)
+            if info is not None and info.shards:
+                from backend.strategies.erasure import fetch_and_decode_chunk
+                try:
+                    return await fetch_and_decode_chunk(
+                        info, manifest.erasure_k, manifest.erasure_n,
+                        _local_store, _peer_fetch_one,
+                    )
+                except ValueError as ve:
+                    raise HTTPException(404, str(ve))
+        # k-copy mode (or erasure manifest missing shard metadata): whole chunk
+        data = _local_store.load_chunk(chunk_hash)
+        if data is not None:
+            return data
+        data = await _peer_fetch_one(chunk_hash)
+        if data is not None:
+            _local_store.save_chunk(chunk_hash, data)
+            return data
         raise HTTPException(404, f"Chunk {chunk_hash[:16]}... not found")
 
     logger.info(
@@ -452,28 +518,51 @@ async def get_chunk(chunk_hash: str):
 
 # ── Phase 21: Resumable Downloads ────────────────────────────────────
 
-def _build_chunk_loader():
-    """Build the async chunk loader with local + peer fallback."""
+def _build_chunk_loader(manifest=None):
+    """
+    Build the async chunk loader with local + peer fallback.
+
+    If `manifest` is provided and is in erasure mode, the loader transparently
+    reconstructs each chunk from any k of n Reed-Solomon shards (Phase 23).
+    Otherwise the loader fetches whole chunks (k-copy mode).
+    """
     import httpx
 
-    async def load_chunk(chunk_hash: str) -> bytes:
-        # Try local first
-        data = _local_store.load_chunk(chunk_hash)
-        if data is not None:
-            return data
-        # Peer fallback
+    async def _peer_fetch_one(target_hash: str):
         peers = await _node.state.get_alive_peers()
-        for nid, peer in peers.items():
+        for _nid, peer in peers.items():
             try:
                 async with httpx.AsyncClient(timeout=30) as client:
                     resp = await client.get(
-                        f"http://{peer.ip}:{peer.api_port}/chunk/{chunk_hash}"
+                        f"http://{peer.ip}:{peer.api_port}/chunk/{target_hash}"
                     )
                 if resp.status_code == 200:
-                    _local_store.save_chunk(chunk_hash, resp.content)
                     return resp.content
             except Exception:
                 continue
+        return None
+
+    erasure_mode = bool(manifest and manifest.replication_mode == "erasure")
+    chunks_by_hash = {c.chunk_hash: c for c in manifest.chunks} if manifest else {}
+
+    async def load_chunk(chunk_hash: str) -> bytes:
+        # Erasure mode: reconstruct from shards.
+        if erasure_mode:
+            info = chunks_by_hash.get(chunk_hash)
+            if info is not None and info.shards:
+                from backend.strategies.erasure import fetch_and_decode_chunk
+                return await fetch_and_decode_chunk(
+                    info, manifest.erasure_k, manifest.erasure_n,
+                    _local_store, _peer_fetch_one,
+                )
+        # k-copy mode: try local, then peers.
+        data = _local_store.load_chunk(chunk_hash)
+        if data is not None:
+            return data
+        data = await _peer_fetch_one(chunk_hash)
+        if data is not None:
+            _local_store.save_chunk(chunk_hash, data)
+            return data
         raise FileNotFoundError(f"Chunk {chunk_hash[:16]}... not available")
 
     return load_chunk
@@ -519,11 +608,12 @@ async def start_resumable_download(file_hash: str, password: str = ""):
     if not manifest_dict:
         raise HTTPException(404, f"File not found: {file_hash}")
 
+    parsed_manifest = FileManifest.from_dict(manifest_dict)
     state = await _download_manager.start_download(
         file_hash=file_hash,
         manifest_dict=manifest_dict,
         password=password,
-        load_chunk_fn=_build_chunk_loader(),
+        load_chunk_fn=_build_chunk_loader(parsed_manifest),
         local_store=_local_store,
     )
 
@@ -549,10 +639,15 @@ async def resume_download(file_hash: str, password: str = ""):
     if not _download_manager or not _local_store:
         raise HTTPException(503, "Node not initialized")
 
+    # Reload manifest so the loader knows the replication mode (k-copy vs erasure)
+    from backend.file_engine.chunker import FileManifest
+    manifest_dict = _local_store.load_manifest(file_hash)
+    parsed_manifest = FileManifest.from_dict(manifest_dict) if manifest_dict else None
+
     state = await _download_manager.resume_download(
         file_hash=file_hash,
         password=password,
-        load_chunk_fn=_build_chunk_loader(),
+        load_chunk_fn=_build_chunk_loader(parsed_manifest),
         local_store=_local_store,
     )
 

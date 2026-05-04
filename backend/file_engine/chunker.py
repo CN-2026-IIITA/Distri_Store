@@ -110,11 +110,22 @@ def verify_merkle_proof(chunk_hash: str, proof: List[dict], merkle_root: str) ->
 # ── Data Classes ───────────────────────────────────────────────
 
 @dataclass
+class ShardInfo:
+    """One Reed-Solomon shard recorded in the manifest (Phase 23)."""
+    shard_index: int
+    shard_hash: str
+    size: int
+
+
+@dataclass
 class ChunkInfo:
     index: int
     chunk_hash: str
     size: int
     encrypted: bool = False
+    # Phase 23: when shards is non-empty, the chunk is reconstructed from
+    # any `erasure_k` of these shards instead of being fetched as a whole.
+    shards: List[ShardInfo] = field(default_factory=list)
 
 
 @dataclass
@@ -126,6 +137,11 @@ class FileManifest:
     merkle_root: str = ""
     compression: str = ""
     chunks: List[ChunkInfo] = field(default_factory=list)
+    # Phase 23: erasure-coding parameters. mode == "erasure" → each ChunkInfo
+    # carries its `shards` list and downloader uses RS reconstruction.
+    replication_mode: str = "kcopy"
+    erasure_k: int = 0
+    erasure_n: int = 0
 
     def to_dict(self) -> dict:
         d = {
@@ -137,9 +153,22 @@ class FileManifest:
             "merkle_root": self.merkle_root,
             "compression": self.compression,
             "chunk_count": len(self.chunks),
+            "replication_mode": self.replication_mode,
+            "erasure_k": self.erasure_k,
+            "erasure_n": self.erasure_n,
             "chunks": [
-                {"index": c.index, "chunk_hash": c.chunk_hash,
-                 "size": c.size, "encrypted": c.encrypted}
+                {
+                    "index": c.index,
+                    "chunk_hash": c.chunk_hash,
+                    "size": c.size,
+                    "encrypted": c.encrypted,
+                    "shards": [
+                        {"shard_index": s.shard_index,
+                         "shard_hash": s.shard_hash,
+                         "size": s.size}
+                        for s in c.shards
+                    ],
+                }
                 for c in self.chunks
             ],
         }
@@ -154,12 +183,24 @@ class FileManifest:
             chunk_size=d.get("chunk_size", DEFAULT_CHUNK_SIZE),
             merkle_root=d.get("merkle_root", ""),
             compression=d.get("compression", ""),
+            replication_mode=d.get("replication_mode", "kcopy"),
+            erasure_k=d.get("erasure_k", 0),
+            erasure_n=d.get("erasure_n", 0),
         )
         for c in d.get("chunks", []):
-            manifest.chunks.append(ChunkInfo(
-                index=c["index"], chunk_hash=c["chunk_hash"],
-                size=c["size"], encrypted=c.get("encrypted", False),
-            ))
+            ci = ChunkInfo(
+                index=c["index"],
+                chunk_hash=c["chunk_hash"],
+                size=c["size"],
+                encrypted=c.get("encrypted", False),
+            )
+            for s in c.get("shards", []):
+                ci.shards.append(ShardInfo(
+                    shard_index=s["shard_index"],
+                    shard_hash=s["shard_hash"],
+                    size=s["size"],
+                ))
+            manifest.chunks.append(ci)
         if not manifest.merkle_root and manifest.chunks:
             manifest.merkle_root = compute_merkle_root(
                 [c.chunk_hash for c in manifest.chunks]

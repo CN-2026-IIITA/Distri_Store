@@ -75,6 +75,89 @@ class ReplicationEngine:
 
         return results
 
+    async def replicate_shards(self, manifest: FileManifest,
+                                shards_per_chunk: list) -> dict:
+        """
+        Phase 23: Distribute Reed-Solomon shards across peers.
+
+        Each chunk is split into n shards on the uploader; this method places
+        them across alive peers so that losing any peer costs at most one shard
+        per chunk (when peer_count >= n). With fewer peers than shards we cycle
+        round-robin — fewer-peers degrades fault tolerance gracefully.
+
+        Args:
+            manifest: FileManifest with shard metadata already populated.
+            shards_per_chunk: List parallel to manifest.chunks; each element is
+                a list of erasure.Shard objects (with .data populated).
+
+        Returns:
+            Per-chunk replication result (which shards landed on which peers).
+        """
+        results = {}
+        peers = await self.state.get_alive_peers()
+        peer_ids = list(peers.keys())
+
+        for info, shards in zip(manifest.chunks, shards_per_chunk):
+            placements = {}  # shard_index -> [peer_ids]
+
+            for shard in shards:
+                if not peer_ids:
+                    placements[shard.shard_index] = []
+                    continue
+
+                # Spread shards across peers using XOR distance from shard hash,
+                # then fall back to round-robin so every shard lands somewhere.
+                xor_closest = find_closest_peers(shard.shard_hash, peer_ids, k=len(peer_ids))
+                ordered_targets = [pid for pid, _ in xor_closest]
+
+                # Place each shard on a single distinct peer (degraded:
+                # if peers < n, some peers will hold multiple shards of the
+                # same chunk — fault tolerance drops accordingly).
+                target = ordered_targets[shard.shard_index % len(ordered_targets)]
+                ok = await self._send_shard_to_peer(target, shard, info, manifest.file_hash)
+                placements[shard.shard_index] = [target] if ok else []
+
+            results[info.chunk_hash] = {
+                "stored_locally": True,
+                "shard_placements": placements,
+                "total_shards": len(shards),
+            }
+            placed = sum(1 for v in placements.values() if v)
+            logger.info(
+                f"Chunk {info.chunk_hash[:12]}... erasure-replicated: "
+                f"{placed}/{len(shards)} shards placed on peers"
+            )
+
+        return results
+
+    async def _send_shard_to_peer(self, peer_id: str, shard, info,
+                                   file_hash: str) -> bool:
+        """Send a single shard to a peer (uses chunk-store wire format —
+        peers store it under the shard_hash key, just like any other chunk)."""
+        conn = self.conn_mgr.connections.get(peer_id)
+        if not conn:
+            peer = await self.state.get_peer(peer_id)
+            if not peer:
+                return False
+            conn = await self.conn_mgr.connect_to_peer(peer.ip, peer.tcp_port)
+            if not conn:
+                return False
+
+        try:
+            msg = store_chunk_msg(
+                self.state.node_id, shard.shard_hash, shard.data, file_hash
+            )
+            await conn.send(msg)
+            logger.debug(
+                f"Sent shard {shard.shard_hash[:12]}... "
+                f"(chunk {info.index}, idx {shard.shard_index}) "
+                f"to {peer_id[:12]}..."
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send shard to {peer_id[:12]}...: {e}")
+            return False
+
     async def _select_targets(self, chunk_hash: str) -> List[str]:
         """Combine heuristic scoring with XOR distance for peer selection."""
         peers = await self.state.get_alive_peers()

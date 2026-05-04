@@ -39,8 +39,14 @@ storage:
   max_storage_mb: 5120
 
 replication:
-  # Number of copies to maintain across the network
+  # Strategy: "kcopy" (full copy on N peers) or "erasure" (Reed-Solomon shards).
+  #   kcopy   → storage = factor x  (default 3x)
+  #   erasure → storage = erasure_n / erasure_k x  (default 9/6 = 1.5x)
+  #             same fault tolerance as kcopy with factor=3.
+  mode: "kcopy"
   factor: 3
+  erasure_k: 6   # data shards required to reconstruct a chunk
+  erasure_n: 9   # total shards produced (n - k = parity tolerance)
 
 api:
   # FastAPI server host & port

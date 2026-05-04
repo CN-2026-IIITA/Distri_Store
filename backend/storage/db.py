@@ -51,19 +51,31 @@ class NodeDatabase:
         """)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS manifests (
-                file_hash   TEXT PRIMARY KEY,
-                filename    TEXT,
-                total_size  INTEGER,
-                merkle_root TEXT,
-                chunks_json TEXT,
-                compression TEXT DEFAULT ''
+                file_hash        TEXT PRIMARY KEY,
+                filename         TEXT,
+                total_size       INTEGER,
+                merkle_root      TEXT,
+                chunks_json      TEXT,
+                compression      TEXT DEFAULT '',
+                chunk_size       INTEGER DEFAULT 262144,
+                replication_mode TEXT DEFAULT 'kcopy',
+                erasure_k        INTEGER DEFAULT 0,
+                erasure_n        INTEGER DEFAULT 0
             )
         """)
         # Phase 18: migrate existing tables that lack the compression column
-        try:
-            cur.execute("ALTER TABLE manifests ADD COLUMN compression TEXT DEFAULT ''")
-        except sqlite3.OperationalError:
-            pass  # column already exists
+        # Phase 23: migrate existing tables that lack erasure-mode columns
+        for ddl in (
+            "ALTER TABLE manifests ADD COLUMN compression TEXT DEFAULT ''",
+            "ALTER TABLE manifests ADD COLUMN chunk_size INTEGER DEFAULT 262144",
+            "ALTER TABLE manifests ADD COLUMN replication_mode TEXT DEFAULT 'kcopy'",
+            "ALTER TABLE manifests ADD COLUMN erasure_k INTEGER DEFAULT 0",
+            "ALTER TABLE manifests ADD COLUMN erasure_n INTEGER DEFAULT 0",
+        ):
+            try:
+                cur.execute(ddl)
+            except sqlite3.OperationalError:
+                pass  # column already exists
         self._conn.commit()
 
     # ── Manifest operations (sync, called via to_thread) ───────────
@@ -72,8 +84,9 @@ class NodeDatabase:
         chunks_json = json.dumps(manifest_dict.get("chunks", []))
         self._conn.execute(
             """INSERT OR REPLACE INTO manifests
-               (file_hash, filename, total_size, merkle_root, chunks_json, compression)
-               VALUES (?, ?, ?, ?, ?, ?)""",
+               (file_hash, filename, total_size, merkle_root, chunks_json,
+                compression, chunk_size, replication_mode, erasure_k, erasure_n)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 file_hash,
                 manifest_dict.get("original_filename", ""),
@@ -81,10 +94,29 @@ class NodeDatabase:
                 manifest_dict.get("merkle_root", ""),
                 chunks_json,
                 manifest_dict.get("compression", ""),
+                manifest_dict.get("chunk_size", 262144),
+                manifest_dict.get("replication_mode", "kcopy"),
+                manifest_dict.get("erasure_k", 0),
+                manifest_dict.get("erasure_n", 0),
             ),
         )
         self._conn.commit()
         logger.debug(f"DB: Saved manifest {file_hash[:12]}...")
+
+    def _row_to_manifest(self, row) -> dict:
+        keys = row.keys()
+        return {
+            "file_hash": row["file_hash"],
+            "original_filename": row["filename"],
+            "original_size": row["total_size"],
+            "merkle_root": row["merkle_root"],
+            "chunks": json.loads(row["chunks_json"]),
+            "compression": row["compression"] if "compression" in keys else "",
+            "chunk_size": row["chunk_size"] if "chunk_size" in keys else 262144,
+            "replication_mode": row["replication_mode"] if "replication_mode" in keys else "kcopy",
+            "erasure_k": row["erasure_k"] if "erasure_k" in keys else 0,
+            "erasure_n": row["erasure_n"] if "erasure_n" in keys else 0,
+        }
 
     def _get_manifest_sync(self, file_hash: str) -> Optional[dict]:
         cur = self._conn.execute(
@@ -93,28 +125,11 @@ class NodeDatabase:
         row = cur.fetchone()
         if not row:
             return None
-        return {
-            "file_hash": row["file_hash"],
-            "original_filename": row["filename"],
-            "original_size": row["total_size"],
-            "merkle_root": row["merkle_root"],
-            "chunks": json.loads(row["chunks_json"]),
-            "compression": row["compression"] if "compression" in row.keys() else "",
-        }
+        return self._row_to_manifest(row)
 
     def _get_all_manifests_sync(self) -> list[dict]:
         cur = self._conn.execute("SELECT * FROM manifests")
-        results = []
-        for row in cur.fetchall():
-            results.append({
-                "file_hash": row["file_hash"],
-                "original_filename": row["filename"],
-                "original_size": row["total_size"],
-                "merkle_root": row["merkle_root"],
-                "chunks": json.loads(row["chunks_json"]),
-                "compression": row["compression"] if "compression" in row.keys() else "",
-            })
-        return results
+        return [self._row_to_manifest(row) for row in cur.fetchall()]
 
     # ── Peer operations (sync, called via to_thread) ───────────────
 

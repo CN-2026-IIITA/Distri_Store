@@ -38,8 +38,17 @@ class StorageConfig:
 
 @dataclass
 class ReplicationConfig:
-    """Replication strategy settings."""
+    """Replication strategy settings.
+
+    mode = "kcopy"   → store full copy of each chunk on `factor` peers (storage = factor x).
+    mode = "erasure" → split each chunk into `erasure_n` Reed-Solomon shards
+                       (any `erasure_k` reconstruct). Storage = erasure_n / erasure_k x
+                       (default 9/6 = 1.5x). Survives loss of (erasure_n - erasure_k) shards.
+    """
     factor: int = 3
+    mode: str = "kcopy"
+    erasure_k: int = 6
+    erasure_n: int = 9
 
 
 @dataclass
