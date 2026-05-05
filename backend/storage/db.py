@@ -276,7 +276,13 @@ class NodeDatabase:
         self, peer_id: str, status: str,
         invited_by_self: bool, peer_name: str = "",
     ) -> dict:
-        """Insert or update a chat thread row, returning the resulting row dict."""
+        """Insert or update a chat thread row, returning the resulting row dict.
+
+        Race-safe ordering rule: an already-accepted thread is never regressed
+        to a pending state. This prevents a stale follow-up upsert (e.g., an
+        invite handler resuming AFTER an accept landed concurrently) from
+        clobbering the accepted state.
+        """
         now = time.time()
         cur = self._conn.execute(
             "SELECT * FROM chat_threads WHERE peer_id = ?", (peer_id,)
@@ -291,6 +297,9 @@ class NodeDatabase:
                 (peer_id, peer_name, status, 1 if invited_by_self else 0, now, now),
             )
         else:
+            # Don't downgrade an already-accepted thread to pending.
+            if existing["status"] == "accepted" and status != "accepted":
+                return dict(existing)
             self._conn.execute(
                 """UPDATE chat_threads
                    SET status = ?, peer_name = COALESCE(NULLIF(?, ''), peer_name),

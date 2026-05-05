@@ -526,11 +526,13 @@ def merge_chunks_to_disk(manifest: FileManifest, chunk_data_list: list[bytes],
     h = hashlib.sha256()
 
     # Derive key ONCE for all chunks
+    from backend.file_engine.crypto import (
+        derive_key as _dk, decrypt_with_key, SALT_SIZE as _SS,
+    )
     dec_key = None
     if aes_key is not None:
         dec_key = aes_key
     elif password and ordered and ordered[0][0].encrypted:
-        from backend.file_engine.crypto import derive_key as _dk, decrypt_with_key, SALT_SIZE as _SS
         first_salt = ordered[0][1][1:1 + _SS]
         dec_key, _ = _dk(password, first_salt)
 
