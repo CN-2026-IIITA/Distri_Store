@@ -618,7 +618,7 @@ sequenceDiagram
     Note over A,B: SO_REUSEADDR — both bind same UDP port
     loop every 5s
         A->>B: HELLO {node_id, name, tcp_port,<br/>api_port, public_key, health,<br/>HMAC-SHA256(swarm_key)}
-        B->>B: Verify HMAC; reject if bad
+        B->>B: Verify HMAC — reject if bad
         B->>A: HELLO (own identity)
     end
 
@@ -762,14 +762,14 @@ sequenceDiagram
     R->>R1: POST /relay (outer SealedBox)
     R1->>R1: SealedBox.decrypt(privkey)<br/>extracts next_hop = R2<br/>+ inner ciphertext
     R1->>R2: POST /relay (inner ciphertext)
-    R2->>R2: peel layer; next_hop = H
+    R2->>R2: peel layer — next_hop = H
     R2->>H: POST /relay (innermost ciphertext)
-    H->>H: peel; sees {op, chunk_hash}
+    H->>H: peel layer — sees op + chunk_hash
     H->>H: load chunk from disk
     H-->>R2: chunk_data (raw)
     R2-->>R1: forward upstream
     R1-->>R: chunk_data
-    Note over R: Path recorded in<br/>_download_paths&#91;file_hash&#93;<br/>= &#91;R1, R2, H&#93;
+    Note over R: Path recorded as<br/>R1 → R2 → H for this download
 ```
 
 ### 9.4 Privacy properties
@@ -813,9 +813,9 @@ sequenceDiagram
     S->>S: For each share, wrap in<br/>SealedBox(holder.pubkey, share)
 
     par
-        S->>H1: POST /peer/keyshare/store<br/>{share_index=1, wrapped, allowed=&#91;beta&#93;}
-        S->>H2: POST /peer/keyshare/store<br/>{share_index=2, wrapped, allowed=&#91;beta&#93;}
-        S->>H3: POST /peer/keyshare/store<br/>{share_index=3, wrapped, allowed=&#91;beta&#93;}
+        S->>H1: POST /peer/keyshare/store<br/>share_index=1, wrapped, allowed=[beta]
+        S->>H2: POST /peer/keyshare/store<br/>share_index=2, wrapped, allowed=[beta]
+        S->>H3: POST /peer/keyshare/store<br/>share_index=3, wrapped, allowed=[beta]
     end
 
     H1->>H1: Verify accepted chat with sender
@@ -826,7 +826,7 @@ sequenceDiagram
     H2-->>S: {status: stored}
     H3-->>S: {status: stored}
 
-    S->>DB: Save manifest:<br/>key_scheme=shamir<br/>key_m=2, key_n=3<br/>key_holders=&#91;H1,H2,H3&#93;<br/>key_recipient=beta
+    S->>DB: Save manifest with<br/>key_scheme=shamir<br/>key_m=2, key_n=3<br/>key_holders = H1, H2, H3<br/>key_recipient = beta
     Note over S: Discard K from memory<br/>(only the shares now exist)
 ```
 
@@ -1052,7 +1052,7 @@ sequenceDiagram
     Note over B: User sees share in<br/>/shared (UI inbox)
 
     B->>A: GET /download/{hash}<br/>(via onion route if cross-node)
-    Note right of B: Path recorded:<br/>&#91;relay1, relay2, alpha&#93;
+    Note right of B: Path recorded as<br/>relay1 → relay2 → alpha
 
     B->>A: POST /shares/{id}/ack<br/>(via /peer/share/receipt)
     A->>A: Insert into share_receipts<br/>with onion path attestation
