@@ -142,6 +142,15 @@ class FileManifest:
     replication_mode: str = "kcopy"
     erasure_k: int = 0
     erasure_n: int = 0
+    # Phase 25C: threshold-encrypted files. key_scheme == "shamir" → AES key
+    # is split via Shamir Secret Sharing across `key_holders` (m of n required).
+    # The key bytes themselves never live in the manifest; downloader collects
+    # m shares from the holders to reconstruct.
+    key_scheme: str = ""              # "" | "shamir"
+    key_m: int = 0
+    key_n: int = 0
+    key_holders: List[str] = field(default_factory=list)  # peer_id list, length n
+    key_recipient: str = ""           # peer_id authorized to retrieve the key
 
     def to_dict(self) -> dict:
         d = {
@@ -156,6 +165,11 @@ class FileManifest:
             "replication_mode": self.replication_mode,
             "erasure_k": self.erasure_k,
             "erasure_n": self.erasure_n,
+            "key_scheme": self.key_scheme,
+            "key_m": self.key_m,
+            "key_n": self.key_n,
+            "key_holders": list(self.key_holders),
+            "key_recipient": self.key_recipient,
             "chunks": [
                 {
                     "index": c.index,
@@ -186,6 +200,11 @@ class FileManifest:
             replication_mode=d.get("replication_mode", "kcopy"),
             erasure_k=d.get("erasure_k", 0),
             erasure_n=d.get("erasure_n", 0),
+            key_scheme=d.get("key_scheme", ""),
+            key_m=d.get("key_m", 0),
+            key_n=d.get("key_n", 0),
+            key_holders=list(d.get("key_holders", [])),
+            key_recipient=d.get("key_recipient", ""),
         )
         for c in d.get("chunks", []):
             ci = ChunkInfo(

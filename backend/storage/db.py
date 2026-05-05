@@ -141,14 +141,42 @@ class NodeDatabase:
             "CREATE INDEX IF NOT EXISTS idx_audits_peer "
             "ON peer_audits(peer_id, challenged_at DESC)"
         )
+        # Phase 25C: Shamir key shares we hold on behalf of other uploaders.
+        # share_index is 1..N; share_blob is the share bytes encrypted with our
+        # X25519 SealedBox so that even disk-snapshot leakage doesn't expose
+        # the share. allowed_requesters lists peer_ids who may collect the share.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS key_shares (
+                file_hash           TEXT NOT NULL,
+                share_index         INTEGER NOT NULL,
+                m                   INTEGER NOT NULL,
+                n                   INTEGER NOT NULL,
+                share_blob          BLOB NOT NULL,
+                uploader_id         TEXT NOT NULL,
+                uploader_name       TEXT DEFAULT '',
+                allowed_requesters  TEXT NOT NULL DEFAULT '[]',
+                stored_at           REAL NOT NULL,
+                PRIMARY KEY (file_hash, share_index)
+            )
+        """)
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_keyshares_file "
+            "ON key_shares(file_hash)"
+        )
         # Phase 18: migrate existing tables that lack the compression column
         # Phase 23: migrate existing tables that lack erasure-mode columns
+        # Phase 25C: migrate existing tables that lack threshold-encryption columns
         for ddl in (
             "ALTER TABLE manifests ADD COLUMN compression TEXT DEFAULT ''",
             "ALTER TABLE manifests ADD COLUMN chunk_size INTEGER DEFAULT 262144",
             "ALTER TABLE manifests ADD COLUMN replication_mode TEXT DEFAULT 'kcopy'",
             "ALTER TABLE manifests ADD COLUMN erasure_k INTEGER DEFAULT 0",
             "ALTER TABLE manifests ADD COLUMN erasure_n INTEGER DEFAULT 0",
+            "ALTER TABLE manifests ADD COLUMN key_scheme TEXT DEFAULT ''",
+            "ALTER TABLE manifests ADD COLUMN key_m INTEGER DEFAULT 0",
+            "ALTER TABLE manifests ADD COLUMN key_n INTEGER DEFAULT 0",
+            "ALTER TABLE manifests ADD COLUMN key_holders TEXT DEFAULT '[]'",
+            "ALTER TABLE manifests ADD COLUMN key_recipient TEXT DEFAULT ''",
         ):
             try:
                 cur.execute(ddl)
@@ -160,11 +188,13 @@ class NodeDatabase:
 
     def _save_manifest_sync(self, file_hash: str, manifest_dict: dict) -> None:
         chunks_json = json.dumps(manifest_dict.get("chunks", []))
+        key_holders_json = json.dumps(manifest_dict.get("key_holders", []))
         self._conn.execute(
             """INSERT OR REPLACE INTO manifests
                (file_hash, filename, total_size, merkle_root, chunks_json,
-                compression, chunk_size, replication_mode, erasure_k, erasure_n)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                compression, chunk_size, replication_mode, erasure_k, erasure_n,
+                key_scheme, key_m, key_n, key_holders, key_recipient)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 file_hash,
                 manifest_dict.get("original_filename", ""),
@@ -176,6 +206,11 @@ class NodeDatabase:
                 manifest_dict.get("replication_mode", "kcopy"),
                 manifest_dict.get("erasure_k", 0),
                 manifest_dict.get("erasure_n", 0),
+                manifest_dict.get("key_scheme", ""),
+                manifest_dict.get("key_m", 0),
+                manifest_dict.get("key_n", 0),
+                key_holders_json,
+                manifest_dict.get("key_recipient", ""),
             ),
         )
         self._conn.commit()
@@ -194,6 +229,11 @@ class NodeDatabase:
             "replication_mode": row["replication_mode"] if "replication_mode" in keys else "kcopy",
             "erasure_k": row["erasure_k"] if "erasure_k" in keys else 0,
             "erasure_n": row["erasure_n"] if "erasure_n" in keys else 0,
+            "key_scheme": row["key_scheme"] if "key_scheme" in keys else "",
+            "key_m": row["key_m"] if "key_m" in keys else 0,
+            "key_n": row["key_n"] if "key_n" in keys else 0,
+            "key_holders": json.loads(row["key_holders"]) if "key_holders" in keys and row["key_holders"] else [],
+            "key_recipient": row["key_recipient"] if "key_recipient" in keys else "",
         }
 
     def _get_manifest_sync(self, file_hash: str) -> Optional[dict]:
@@ -449,6 +489,40 @@ class NodeDatabase:
         )
         return [dict(row) for row in cur.fetchall()]
 
+    # ── Phase 25C: Shamir key-share storage (we hold shares for others) ──
+
+    def _store_key_share_sync(self, file_hash: str, share_index: int,
+                               m: int, n: int, share_blob: bytes,
+                               uploader_id: str, uploader_name: str,
+                               allowed_requesters_json: str) -> None:
+        self._conn.execute(
+            """INSERT OR REPLACE INTO key_shares
+               (file_hash, share_index, m, n, share_blob, uploader_id,
+                uploader_name, allowed_requesters, stored_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (file_hash, share_index, m, n, share_blob, uploader_id,
+             uploader_name, allowed_requesters_json, time.time()),
+        )
+        self._conn.commit()
+
+    def _get_key_share_sync(self, file_hash: str) -> Optional[dict]:
+        cur = self._conn.execute(
+            "SELECT * FROM key_shares WHERE file_hash = ?", (file_hash,)
+        )
+        row = cur.fetchone()
+        return dict(row) if row else None
+
+    def _list_key_shares_sync(self) -> list[dict]:
+        cur = self._conn.execute("SELECT * FROM key_shares ORDER BY stored_at DESC")
+        return [dict(row) for row in cur.fetchall()]
+
+    def _delete_key_share_sync(self, file_hash: str) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM key_shares WHERE file_hash = ?", (file_hash,)
+        )
+        self._conn.commit()
+        return cur.rowcount > 0
+
     # ── Async wrappers ─────────────────────────────────────────────
 
     async def save_manifest(self, file_hash: str, manifest_dict: dict) -> None:
@@ -535,6 +609,25 @@ class NodeDatabase:
 
     async def get_audit_reputation(self) -> list[dict]:
         return await asyncio.to_thread(self._get_audit_reputation_sync)
+
+    # Phase 25C: key-share async wrappers
+    async def store_key_share(self, file_hash: str, share_index: int,
+                               m: int, n: int, share_blob: bytes,
+                               uploader_id: str, uploader_name: str,
+                               allowed_requesters_json: str) -> None:
+        await asyncio.to_thread(
+            self._store_key_share_sync, file_hash, share_index, m, n,
+            share_blob, uploader_id, uploader_name, allowed_requesters_json,
+        )
+
+    async def get_key_share(self, file_hash: str) -> Optional[dict]:
+        return await asyncio.to_thread(self._get_key_share_sync, file_hash)
+
+    async def list_key_shares(self) -> list[dict]:
+        return await asyncio.to_thread(self._list_key_shares_sync)
+
+    async def delete_key_share(self, file_hash: str) -> bool:
+        return await asyncio.to_thread(self._delete_key_share_sync, file_hash)
 
     def close(self) -> None:
         self._conn.close()
