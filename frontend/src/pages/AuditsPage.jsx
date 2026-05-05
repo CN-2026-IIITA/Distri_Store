@@ -2,7 +2,7 @@
  * AuditsPage — Phase 25B: Proof-of-Storage scoreboard.
  *
  * Two sections:
- *   1. Reputation table — per-peer pass / fail / pass-rate, last audit time,
+ *   1. Reputation table — per-peer pass / fail / pass-rate, last audit time, 
  *      plus an "Audit now" button to manually challenge a specific peer.
  *   2. Audit log — most-recent challenges in chronological order, showing
  *      the chunk, nonce, expected vs received proof, and the result.
