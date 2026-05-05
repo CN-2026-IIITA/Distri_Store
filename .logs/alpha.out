@@ -1,0 +1,1051 @@
+12:12:31 | INFO     | distristore.node.state       | NodeState initialized: id=32fb17c9581d... name=node-alpha
+12:12:31 | INFO     | distristore.storage.db       | NodeDatabase initialized at G:\projects\CN_project\.storage\distristore.db
+12:12:31 | INFO     | distristore.storage.local_store | LocalStore initialized at G:\projects\CN_project\.storage
+
+============================================================
+  DistriStore GUI accessible at http://localhost:8888
+============================================================
+
+12:12:32 | INFO     | distristore.node.state       | NodeState initialized: id=32fb17c9581d... name=node-alpha
+12:12:32 | INFO     | distristore.storage.db       | NodeDatabase initialized at G:\projects\CN_project\.storage\distristore.db
+12:12:32 | INFO     | distristore.storage.local_store | LocalStore initialized at G:\projects\CN_project\.storage
+12:12:32 | INFO     | distristore.node.state       | Loaded 6 historical peers from SQLite
+12:12:32 | INFO     | distristore.node.state       | Onion identity installed (pub=bdad793e50b9219e...)
+12:12:32 | INFO     | distristore.strategies.audit | Auditor loop started (interval=30s)
+12:12:32 | INFO     | distristore.network.connection | TCP server listening on 0.0.0.0:50001 (requested 50001)
+12:12:32 | INFO     | distristore.network.discovery | Discovery listener on UDP :50000
+12:12:32 | INFO     | distristore.network.discovery | UDP Discovery service started
+12:12:32 | INFO     | distristore.node.core        | Node [node-alpha] started | ID: 32fb17c9581d... | TCP: 50001 | UDP: 50000
+12:12:32 | INFO     | distristore.main             | DistriStore node started alongside API server
+12:12:32 | INFO     | distristore.network.discovery | Broadcasting every 5s -> 255.255.255.255:50000
+12:12:32 | DEBUG    | distristore.network.discovery | Broadcast HELLO (467 bytes)
+12:12:32 | INFO     | distristore.garbage_collector | Storage Monitor started (Quota: 5120 MB)
+12:12:37 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+12:12:42 | DEBUG    | distristore.network.discovery | Broadcast HELLO (466 bytes)
+12:12:47 | DEBUG    | distristore.network.discovery | Broadcast HELLO (466 bytes)
+12:12:52 | DEBUG    | distristore.network.discovery | Broadcast HELLO (466 bytes)
+12:12:57 | DEBUG    | distristore.network.discovery | Broadcast HELLO (462 bytes)
+12:13:00 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4656.72, RAM=4285.6MB, CPU=1.47GHz]
+12:13:00 | INFO     | distristore.node.state       | New peer discovered: d98fa30eeffc... (192.168.56.1:50002)
+12:13:02 | DEBUG    | distristore.node.core        | Attempting TCP to 192.168.56.1:50002
+12:13:02 | DEBUG    | distristore.network.discovery | Broadcast HELLO (466 bytes)
+12:13:02 | INFO     | distristore.network.connection | Connected to 192.168.56.1:50002 (peer d98fa30eeffc...)
+12:13:02 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:13:05 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4677.14, RAM=4299.3MB, CPU=1.47GHz]
+12:13:05 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:13:07 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+12:13:10 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4690.53, RAM=4310.4MB, CPU=1.47GHz]
+12:13:10 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:13:12 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+12:13:15 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4494.54, RAM=4043.5MB, CPU=2.2GHz]
+12:13:15 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:13:17 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+12:13:19 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4425.57, RAM=3973.8MB, CPU=2.2GHz]
+12:13:19 | INFO     | distristore.node.state       | New peer discovered: 9a9f952e7904... (192.168.56.1:50003)
+12:13:20 | DEBUG    | distristore.node.core        | Attempting TCP to 192.168.56.1:50003
+12:13:20 | INFO     | distristore.network.connection | Connected to 192.168.56.1:50003 (peer 9a9f952e7904...)
+12:13:20 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:13:20 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4427.27, RAM=3973.3MB, CPU=2.2GHz]
+12:13:21 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:13:22 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+12:13:24 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4617.97, RAM=4165.4MB, CPU=2.2GHz]
+12:13:24 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:13:26 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4636.75, RAM=4184.2MB, CPU=2.2GHz]
+12:13:26 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:13:27 | DEBUG    | distristore.network.discovery | Broadcast HELLO (463 bytes)
+12:13:29 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4529.72, RAM=4077.0MB, CPU=2.2GHz]
+12:13:29 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:13:31 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4542.15, RAM=4089.4MB, CPU=2.2GHz]
+12:13:31 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:13:32 | DEBUG    | distristore.network.discovery | Broadcast HELLO (463 bytes)
+12:13:34 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4374.11, RAM=3923.6MB, CPU=2.2GHz]
+12:13:34 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:13:36 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4302.96, RAM=3925.8MB, CPU=1.47GHz]
+12:13:36 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:13:37 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+12:13:39 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4418.22, RAM=3968.1MB, CPU=2.2GHz]
+12:13:39 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:13:41 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4445.07, RAM=3995.9MB, CPU=2.2GHz]
+12:13:41 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:13:42 | DEBUG    | distristore.network.discovery | Broadcast HELLO (463 bytes)
+12:13:44 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4440.75, RAM=3990.5MB, CPU=2.2GHz]
+12:13:44 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:13:46 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4458.15, RAM=4007.7MB, CPU=2.2GHz]
+12:13:46 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:13:47 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+12:13:49 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4394.4, RAM=4015.9MB, CPU=1.47GHz]
+12:13:49 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:13:51 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4471.17, RAM=4019.2MB, CPU=2.2GHz]
+12:13:51 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:13:52 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+12:13:54 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4452.1, RAM=4073.7MB, CPU=1.47GHz]
+12:13:54 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:13:56 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4528.03, RAM=4076.4MB, CPU=2.2GHz]
+12:13:56 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:13:57 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+12:13:59 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4483.89, RAM=4110.1MB, CPU=1.47GHz]
+12:13:59 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:14:01 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4557.83, RAM=4110.7MB, CPU=2.2GHz]
+12:14:01 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:14:02 | DEBUG    | distristore.network.discovery | Broadcast HELLO (462 bytes)
+12:14:04 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4345.79, RAM=3894.3MB, CPU=2.2GHz]
+12:14:04 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:14:06 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4355.93, RAM=3904.1MB, CPU=2.2GHz]
+12:14:06 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:14:07 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+12:14:09 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4345.57, RAM=3892.9MB, CPU=2.2GHz]
+12:14:09 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:14:11 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4270.65, RAM=3891.7MB, CPU=1.47GHz]
+12:14:11 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:14:12 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+12:14:14 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4622.18, RAM=4171.5MB, CPU=2.2GHz]
+12:14:14 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:57278 - "GET /status HTTP/1.1" 200 OK
+12:14:16 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4578.96, RAM=4130.6MB, CPU=2.2GHz]
+12:14:16 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:14:17 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+12:14:19 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4529.25, RAM=4153.7MB, CPU=1.47GHz]
+12:14:19 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:14:21 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4577.6, RAM=4126.9MB, CPU=2.2GHz]
+12:14:21 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:14:22 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+12:14:24 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4543.79, RAM=4166.1MB, CPU=1.47GHz]
+12:14:24 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:14:26 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4417.35, RAM=3967.3MB, CPU=2.2GHz]
+12:14:26 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:14:27 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+12:14:29 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4189.63, RAM=3812.5MB, CPU=1.47GHz]
+12:14:29 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:14:31 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4179.33, RAM=3801.1MB, CPU=1.47GHz]
+12:14:31 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:14:32 | DEBUG    | distristore.network.discovery | Broadcast HELLO (466 bytes)
+12:14:34 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4385.79, RAM=4009.9MB, CPU=1.47GHz]
+12:14:34 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:14:36 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4443.9, RAM=3995.8MB, CPU=2.2GHz]
+12:14:36 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:14:37 | DEBUG    | distristore.network.discovery | Broadcast HELLO (466 bytes)
+12:14:40 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4469.49, RAM=4019.4MB, CPU=2.2GHz]
+12:14:40 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:14:41 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4462.89, RAM=4012.0MB, CPU=2.2GHz]
+12:14:41 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:14:42 | DEBUG    | distristore.network.discovery | Broadcast HELLO (463 bytes)
+INFO:     127.0.0.1:52777 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60087 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /share-receipts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52777 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60087 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /share-receipts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60068 - "GET /files HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:14:45 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4356.4, RAM=3909.4MB, CPU=2.2GHz]
+12:14:45 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:14:46 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4296.75, RAM=3923.3MB, CPU=1.47GHz]
+12:14:46 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:55841 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52777 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60068 - "GET /files HTTP/1.1" 200 OK
+12:14:47 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+12:14:50 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4290.48, RAM=3841.1MB, CPU=2.2GHz]
+12:14:50 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:60068 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52777 - "GET /files HTTP/1.1" 200 OK
+12:14:51 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4237.01, RAM=3861.5MB, CPU=1.47GHz]
+12:14:51 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:52777 - "GET /share-receipts HTTP/1.1" 200 OK
+12:14:52 | DEBUG    | distristore.network.discovery | Broadcast HELLO (463 bytes)
+INFO:     127.0.0.1:52777 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60068 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:14:55 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4414.24, RAM=3965.4MB, CPU=2.2GHz]
+12:14:55 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:14:56 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4421.0, RAM=3972.0MB, CPU=2.2GHz]
+12:14:56 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:52777 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60068 - "GET /files HTTP/1.1" 200 OK
+12:14:57 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+INFO:     127.0.0.1:60068 - "GET /share-receipts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60068 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52777 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:15:00 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4331.02, RAM=3959.3MB, CPU=1.47GHz]
+12:15:00 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:15:01 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4290.34, RAM=3918.9MB, CPU=1.47GHz]
+12:15:01 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:55841 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60068 - "GET /downloads HTTP/1.1" 200 OK
+12:15:02 | DEBUG    | distristore.network.discovery | Broadcast HELLO (466 bytes)
+INFO:     127.0.0.1:52777 - "GET /files HTTP/1.1" 200 OK
+12:15:05 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4437.45, RAM=4062.5MB, CPU=1.47GHz]
+12:15:05 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:52777 - "GET /share-receipts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60068 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52360 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:15:06 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4520.16, RAM=4071.5MB, CPU=2.2GHz]
+12:15:06 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:15:07 | DEBUG    | distristore.network.discovery | Broadcast HELLO (466 bytes)
+INFO:     127.0.0.1:55841 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60068 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52360 - "GET /files HTTP/1.1" 200 OK
+12:15:10 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4544.07, RAM=4094.0MB, CPU=2.2GHz]
+12:15:10 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:52360 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /downloads HTTP/1.1" 200 OK
+12:15:11 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4555.81, RAM=4105.1MB, CPU=2.2GHz]
+12:15:11 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:60068 - "GET /files HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60068 - "GET /share-receipts HTTP/1.1" 200 OK
+12:15:12 | DEBUG    | distristore.network.discovery | Broadcast HELLO (466 bytes)
+INFO:     127.0.0.1:60068 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52360 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:15:15 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4546.14, RAM=4094.6MB, CPU=2.2GHz]
+12:15:15 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:15:16 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4604.03, RAM=4152.2MB, CPU=2.2GHz]
+12:15:16 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:55841 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60068 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52360 - "GET /files HTTP/1.1" 200 OK
+12:15:17 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+INFO:     127.0.0.1:52360 - "GET /share-receipts HTTP/1.1" 200 OK
+12:15:20 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4471.24, RAM=4093.3MB, CPU=1.47GHz]
+12:15:20 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:52360 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60068 - "GET /files HTTP/1.1" 200 OK
+12:15:21 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4488.57, RAM=4110.8MB, CPU=1.47GHz]
+12:15:21 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:15:22 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+INFO:     127.0.0.1:60068 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52360 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:15:25 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4498.06, RAM=4118.3MB, CPU=1.47GHz]
+12:15:25 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:52360 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /share-receipts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /downloads HTTP/1.1" 200 OK
+12:15:26 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4547.63, RAM=4095.6MB, CPU=2.2GHz]
+12:15:26 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:60068 - "GET /files HTTP/1.1" 200 OK
+12:15:27 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+INFO:     127.0.0.1:60068 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /files HTTP/1.1" 200 OK
+12:15:30 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4597.06, RAM=4147.4MB, CPU=2.2GHz]
+12:15:30 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:15:31 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4537.8, RAM=4161.7MB, CPU=1.47GHz]
+12:15:31 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:65132 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60068 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:15:32 | DEBUG    | distristore.network.discovery | Broadcast HELLO (462 bytes)
+INFO:     127.0.0.1:55841 - "GET /share-receipts HTTP/1.1" 200 OK
+12:15:35 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4581.81, RAM=4130.5MB, CPU=2.2GHz]
+12:15:35 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:55841 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60068 - "GET /files HTTP/1.1" 200 OK
+12:15:36 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4582.87, RAM=4129.7MB, CPU=2.2GHz]
+12:15:36 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:15:37 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+INFO:     127.0.0.1:60068 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /files HTTP/1.1" 200 OK
+12:15:40 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4569.38, RAM=4115.7MB, CPU=2.2GHz]
+12:15:40 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:65132 - "GET /share-receipts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60068 - "GET /downloads HTTP/1.1" 200 OK
+12:15:41 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4571.12, RAM=4117.8MB, CPU=2.2GHz]
+12:15:41 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:15:42 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+INFO:     127.0.0.1:55841 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60068 - "GET /files HTTP/1.1" 200 OK
+12:15:45 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4574.86, RAM=4122.6MB, CPU=2.2GHz]
+12:15:45 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:15:46 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=4567.06, RAM=4115.1MB, CPU=2.2GHz]
+12:15:46 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:60068 - "GET /share-receipts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60068 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:15:47 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+12:15:50 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=4561.9, RAM=4109.5MB, CPU=2.2GHz]
+12:15:50 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:55841 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60068 - "GET /files HTTP/1.1" 200 OK
+12:15:51 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5045.03, RAM=4593.7MB, CPU=2.2GHz]
+12:15:51 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:15:52 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+INFO:     127.0.0.1:60068 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /files HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /share-receipts HTTP/1.1" 200 OK
+12:15:55 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5679.49, RAM=5231.9MB, CPU=2.2GHz]
+12:15:55 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:65132 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60068 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:15:56 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5666.92, RAM=5218.9MB, CPU=2.2GHz]
+12:15:56 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:15:57 | DEBUG    | distristore.network.discovery | Broadcast HELLO (463 bytes)
+INFO:     127.0.0.1:55841 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60068 - "GET /files HTTP/1.1" 200 OK
+12:16:00 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5673.71, RAM=5223.1MB, CPU=2.2GHz]
+12:16:00 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:60068 - "GET /share-receipts HTTP/1.1" 200 OK
+12:16:01 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5706.84, RAM=5255.3MB, CPU=2.2GHz]
+12:16:01 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:60068 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /files HTTP/1.1" 200 OK
+12:16:02 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+INFO:     127.0.0.1:65132 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60068 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:16:05 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5724.64, RAM=5272.9MB, CPU=2.2GHz]
+12:16:05 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:16:06 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5729.3, RAM=5277.3MB, CPU=2.2GHz]
+12:16:06 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:16:07 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+INFO:     127.0.0.1:60068 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /share-receipts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /files HTTP/1.1" 200 OK
+12:16:10 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5708.38, RAM=5257.0MB, CPU=2.2GHz]
+12:16:10 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:65132 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:16:11 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5652.96, RAM=5275.8MB, CPU=1.47GHz]
+12:16:11 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:55841 - "GET /chats HTTP/1.1" 200 OK
+12:16:12 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+INFO:     127.0.0.1:55841 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /files HTTP/1.1" 200 OK
+12:16:15 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5655.97, RAM=5278.4MB, CPU=1.47GHz]
+12:16:15 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:16:16 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5658.5, RAM=5280.2MB, CPU=1.47GHz]
+12:16:16 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:57327 - "GET /chats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /files HTTP/1.1" 200 OK
+12:16:17 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+INFO:     127.0.0.1:65132 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:16:20 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5730.37, RAM=5352.7MB, CPU=1.47GHz]
+12:16:20 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:16:21 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5802.65, RAM=5352.0MB, CPU=2.2GHz]
+12:16:21 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:16:22 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+INFO:     127.0.0.1:55841 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /files HTTP/1.1" 200 OK
+12:16:25 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5830.8, RAM=5378.0MB, CPU=2.2GHz]
+12:16:25 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:57327 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /files HTTP/1.1" 200 OK
+12:16:26 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5777.72, RAM=5398.3MB, CPU=1.47GHz]
+12:16:26 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:16:27 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+INFO:     127.0.0.1:65132 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:16:30 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5860.58, RAM=5407.3MB, CPU=2.2GHz]
+12:16:30 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:16:31 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5859.98, RAM=5405.4MB, CPU=2.2GHz]
+12:16:31 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:55841 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /files HTTP/1.1" 200 OK
+12:16:32 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+12:16:33 | INFO     | distristore.file_engine.chunker | Chunked 'SpiralMamba_Phase4_Documentation.docx' (21977 bytes) -> 1 chunks (encrypted, zstd) merkle_root=9e0fc639343c8c5f...
+12:16:33 | DEBUG    | distristore.storage.local_store | Saved chunk 9e0fc639343c... (19450 bytes)
+12:16:33 | DEBUG    | distristore.node.state       | Registered local chunk 9e0fc639343c...
+12:16:33 | DEBUG    | distristore.storage.db       | DB: Saved manifest 267ea908d8c8...
+12:16:33 | DEBUG    | distristore.storage.local_store | Saved manifest 267ea908d8c8...
+12:16:33 | DEBUG    | distristore.storage.local_store | Saved chunk 9e0fc639343c... (19450 bytes)
+12:16:33 | DEBUG    | distristore.node.state       | Registered local chunk 9e0fc639343c...
+12:16:33 | DEBUG    | distristore.strategies.selector | Scored 2 peers, best=d98fa30eeffc... (score=1.0)
+12:16:33 | DEBUG    | distristore.dht.routing      | Closest 2 peers to 9e0fc639343c...: 9a9f952e7904...(d=71493300870122536995203876178826309961793427359008016086882748889015266502312), d98fa30eeffc...(d=71493300870122536995203876179174913283220061031921606695943597353583894305729)
+12:16:33 | DEBUG    | distristore.strategies.replication | Sent chunk 9e0fc639343c... to 9a9f952e7904...
+12:16:33 | DEBUG    | distristore.strategies.replication | Sent chunk 9e0fc639343c... to d98fa30eeffc...
+12:16:33 | DEBUG    | distristore.dht.routing      | Assigned 9e0fc639343c... -> 3 peers
+12:16:33 | INFO     | distristore.strategies.replication | Chunk 9e0fc639343c... replicated to 2/3 peers
+12:16:33 | INFO     | distristore.api.routes       | Uploaded 'SpiralMamba_Phase4_Documentation.docx': 1 chunks, hash=267ea908d8c87ae3...
+INFO:     127.0.0.1:57327 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /files HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:16:35 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5886.5, RAM=5432.2MB, CPU=2.2GHz]
+12:16:35 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:16:36 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5886.44, RAM=5431.9MB, CPU=2.2GHz]
+12:16:36 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:16:37 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+INFO:     127.0.0.1:55841 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /files HTTP/1.1" 200 OK
+12:16:40 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5810.23, RAM=5427.4MB, CPU=1.47GHz]
+12:16:40 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:57327 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /files HTTP/1.1" 200 OK
+12:16:41 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5809.27, RAM=5427.0MB, CPU=1.47GHz]
+12:16:41 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:16:42 | DEBUG    | distristore.network.discovery | Broadcast HELLO (461 bytes)
+INFO:     127.0.0.1:65132 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:16:45 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5925.69, RAM=5473.1MB, CPU=2.2GHz]
+12:16:45 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:16:46 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5851.77, RAM=5472.8MB, CPU=1.47GHz]
+12:16:46 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:55841 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /files HTTP/1.1" 200 OK
+12:16:47 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+INFO:     127.0.0.1:57327 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /files HTTP/1.1" 200 OK
+12:16:50 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5786.94, RAM=5406.8MB, CPU=1.47GHz]
+12:16:50 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:16:51 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5871.4, RAM=5417.8MB, CPU=2.2GHz]
+12:16:51 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:65132 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /downloads HTTP/1.1" 200 OK
+12:16:53 | DEBUG    | distristore.network.discovery | Broadcast HELLO (463 bytes)
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:16:55 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5755.19, RAM=5301.7MB, CPU=2.2GHz]
+12:16:55 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:55841 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /files HTTP/1.1" 200 OK
+12:16:56 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5747.17, RAM=5294.2MB, CPU=2.2GHz]
+12:16:56 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:16:58 | DEBUG    | distristore.network.discovery | Broadcast HELLO (466 bytes)
+INFO:     127.0.0.1:57327 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /files HTTP/1.1" 200 OK
+12:17:00 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5688.45, RAM=5309.6MB, CPU=1.47GHz]
+12:17:00 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:17:01 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5742.29, RAM=5290.4MB, CPU=2.2GHz]
+12:17:01 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:17:02 | DEBUG    | distristore.storage.local_store | Loaded chunk 9e0fc639343c... (19450 bytes)
+INFO:     127.0.0.1:65132 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /downloads HTTP/1.1" 200 OK
+12:17:02 | INFO     | distristore.strategies.audit | Audit node-beta (d98fa30eeffc...) chunk 9e0fc639343c... -> pass
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:17:03 | DEBUG    | distristore.network.discovery | Broadcast HELLO (466 bytes)
+INFO:     127.0.0.1:55841 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /downloads HTTP/1.1" 200 OK
+12:17:05 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5619.32, RAM=5170.2MB, CPU=2.2GHz]
+12:17:05 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:57327 - "GET /files HTTP/1.1" 200 OK
+12:17:06 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5602.87, RAM=5153.2MB, CPU=2.2GHz]
+12:17:06 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:57327 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /downloads HTTP/1.1" 200 OK
+12:17:08 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+INFO:     127.0.0.1:65132 - "GET /files HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /chats HTTP/1.1" 200 OK
+12:17:10 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5633.6, RAM=5181.1MB, CPU=2.2GHz]
+12:17:10 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:57396 - "GET /manifest/267ea908d8c87ae3dfb22ceab2b9105e6e6bba82462a88fdb906cf56fd3a63c1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:17:11 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5583.1, RAM=5205.2MB, CPU=1.47GHz]
+12:17:11 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:17:13 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+INFO:     127.0.0.1:55841 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /files HTTP/1.1" 200 OK
+12:17:15 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5744.39, RAM=5367.4MB, CPU=1.47GHz]
+12:17:15 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:17:16 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5751.56, RAM=5374.3MB, CPU=1.47GHz]
+12:17:16 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:57327 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /files HTTP/1.1" 200 OK
+12:17:18 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+INFO:     127.0.0.1:65132 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /downloads HTTP/1.1" 200 OK
+12:17:20 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5817.69, RAM=5366.1MB, CPU=2.2GHz]
+12:17:20 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:17:21 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5852.6, RAM=5400.6MB, CPU=2.2GHz]
+12:17:21 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:17:23 | DEBUG    | distristore.network.discovery | Broadcast HELLO (463 bytes)
+INFO:     127.0.0.1:55841 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /files HTTP/1.1" 200 OK
+12:17:25 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5795.88, RAM=5344.5MB, CPU=2.2GHz]
+12:17:25 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:57327 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /files HTTP/1.1" 200 OK
+12:17:26 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5631.92, RAM=5181.7MB, CPU=2.2GHz]
+12:17:26 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:17:28 | DEBUG    | distristore.network.discovery | Broadcast HELLO (466 bytes)
+INFO:     127.0.0.1:65132 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:17:30 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5489.34, RAM=5115.4MB, CPU=1.47GHz]
+12:17:30 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:17:31 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5470.08, RAM=5094.5MB, CPU=1.47GHz]
+12:17:31 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:55841 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /downloads HTTP/1.1" 200 OK
+12:17:32 | DEBUG    | distristore.storage.local_store | Loaded chunk 9e0fc639343c... (19450 bytes)
+INFO:     127.0.0.1:57327 - "GET /files HTTP/1.1" 200 OK
+12:17:32 | INFO     | distristore.strategies.audit | Audit node-beta (d98fa30eeffc...) chunk 9e0fc639343c... -> pass
+12:17:33 | DEBUG    | distristore.network.discovery | Broadcast HELLO (462 bytes)
+INFO:     127.0.0.1:57327 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /downloads HTTP/1.1" 200 OK
+12:17:35 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5562.13, RAM=5111.2MB, CPU=2.2GHz]
+12:17:35 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:65132 - "GET /files HTTP/1.1" 200 OK
+12:17:36 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5198.05, RAM=4750.8MB, CPU=2.2GHz]
+12:17:36 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:17:38 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+INFO:     127.0.0.1:65132 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:17:40 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5522.92, RAM=5077.0MB, CPU=2.2GHz]
+12:17:40 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:55841 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /files HTTP/1.1" 200 OK
+12:17:41 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5527.69, RAM=5079.6MB, CPU=2.2GHz]
+12:17:41 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:17:43 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+INFO:     127.0.0.1:57327 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /files HTTP/1.1" 200 OK
+12:17:45 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5487.09, RAM=5109.1MB, CPU=1.47GHz]
+12:17:45 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:17:46 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5544.11, RAM=5091.7MB, CPU=2.2GHz]
+12:17:46 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:65132 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:17:48 | DEBUG    | distristore.network.discovery | Broadcast HELLO (463 bytes)
+INFO:     127.0.0.1:55841 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /downloads HTTP/1.1" 200 OK
+12:17:50 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5463.93, RAM=5087.7MB, CPU=1.47GHz]
+12:17:50 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:57327 - "GET /files HTTP/1.1" 200 OK
+INFO:     192.168.56.1:56410 - "GET /manifest/%3Dtest123 HTTP/1.1" 404 Not Found
+12:17:51 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5537.07, RAM=5088.1MB, CPU=2.2GHz]
+12:17:51 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:17:53 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+INFO:     127.0.0.1:57327 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /files HTTP/1.1" 200 OK
+12:17:55 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5545.43, RAM=5095.0MB, CPU=2.2GHz]
+12:17:55 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:65132 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:17:56 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5552.36, RAM=5100.8MB, CPU=2.2GHz]
+12:17:56 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:17:58 | DEBUG    | distristore.network.discovery | Broadcast HELLO (463 bytes)
+INFO:     127.0.0.1:55841 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /files HTTP/1.1" 200 OK
+12:18:00 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5547.93, RAM=5095.9MB, CPU=2.2GHz]
+12:18:00 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:18:01 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5488.23, RAM=5109.4MB, CPU=1.47GHz]
+12:18:01 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:57327 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /files HTTP/1.1" 200 OK
+12:18:02 | DEBUG    | distristore.storage.local_store | Loaded chunk 9e0fc639343c... (19450 bytes)
+12:18:02 | INFO     | distristore.strategies.audit | Audit node-gamma (9a9f952e7904...) chunk 9e0fc639343c... -> pass
+12:18:03 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+INFO:     127.0.0.1:65132 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /downloads HTTP/1.1" 200 OK
+12:18:05 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5465.51, RAM=5013.2MB, CPU=2.2GHz]
+12:18:05 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:55841 - "GET /files HTTP/1.1" 200 OK
+12:18:06 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5265.17, RAM=4816.8MB, CPU=2.2GHz]
+12:18:06 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:18:08 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+INFO:     127.0.0.1:55841 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /files HTTP/1.1" 200 OK
+12:18:10 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5321.36, RAM=4946.1MB, CPU=1.47GHz]
+12:18:10 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:57327 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55841 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65132 - "GET /files HTTP/1.1" 200 OK
+12:18:11 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5334.76, RAM=4955.7MB, CPU=1.47GHz]
+12:18:11 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:18:13 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+INFO:     192.168.56.1:56431 - "GET /files?local_only=true HTTP/1.1" 200 OK
+12:18:15 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5648.49, RAM=5195.8MB, CPU=2.2GHz]
+12:18:15 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:56433 - "GET /files HTTP/1.1" 200 OK
+12:18:16 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5722.88, RAM=5271.2MB, CPU=2.2GHz]
+12:18:16 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:18:18 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+12:18:20 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5746.83, RAM=5293.3MB, CPU=2.2GHz]
+12:18:20 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:18:21 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5674.89, RAM=5293.6MB, CPU=1.47GHz]
+12:18:21 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:18:23 | DEBUG    | distristore.network.discovery | Broadcast HELLO (466 bytes)
+12:18:25 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5668.77, RAM=5289.4MB, CPU=1.47GHz]
+12:18:25 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:18:27 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5655.53, RAM=5276.7MB, CPU=1.47GHz]
+12:18:27 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:18:28 | DEBUG    | distristore.network.discovery | Broadcast HELLO (466 bytes)
+12:18:30 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5662.88, RAM=5283.5MB, CPU=1.47GHz]
+12:18:30 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:18:32 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5656.58, RAM=5204.3MB, CPU=2.2GHz]
+12:18:32 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:18:32 | DEBUG    | distristore.storage.local_store | Loaded chunk 9e0fc639343c... (19450 bytes)
+12:18:33 | INFO     | distristore.strategies.audit | Audit node-gamma (9a9f952e7904...) chunk 9e0fc639343c... -> pass
+12:18:33 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+12:18:35 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5588.3, RAM=5209.0MB, CPU=1.47GHz]
+12:18:35 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:18:37 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5694.29, RAM=5241.1MB, CPU=2.2GHz]
+12:18:37 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:18:38 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+12:18:40 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5514.01, RAM=5136.2MB, CPU=1.47GHz]
+12:18:40 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:18:42 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5571.38, RAM=5120.0MB, CPU=2.2GHz]
+12:18:42 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:18:43 | DEBUG    | distristore.network.discovery | Broadcast HELLO (466 bytes)
+12:18:45 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5574.38, RAM=5120.8MB, CPU=2.2GHz]
+12:18:45 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:18:47 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5665.42, RAM=5211.7MB, CPU=2.2GHz]
+12:18:47 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:18:48 | DEBUG    | distristore.network.discovery | Broadcast HELLO (463 bytes)
+12:18:50 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5712.65, RAM=5260.1MB, CPU=2.2GHz]
+12:18:50 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:18:52 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5713.18, RAM=5260.5MB, CPU=2.2GHz]
+12:18:52 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:18:53 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+12:18:55 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5587.71, RAM=5134.9MB, CPU=2.2GHz]
+12:18:55 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:18:57 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5599.81, RAM=5146.9MB, CPU=2.2GHz]
+12:18:57 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:18:58 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+12:19:00 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5240.88, RAM=4865.5MB, CPU=1.47GHz]
+12:19:00 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:19:02 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5315.35, RAM=4867.8MB, CPU=2.2GHz]
+12:19:02 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:19:03 | DEBUG    | distristore.storage.local_store | Loaded chunk 9e0fc639343c... (19450 bytes)
+12:19:03 | INFO     | distristore.strategies.audit | Audit node-beta (d98fa30eeffc...) chunk 9e0fc639343c... -> pass
+12:19:03 | DEBUG    | distristore.network.discovery | Broadcast HELLO (466 bytes)
+INFO:     127.0.0.1:49912 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49317 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62644 - "GET /files HTTP/1.1" 200 OK
+12:19:05 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5263.56, RAM=4885.5MB, CPU=1.47GHz]
+12:19:05 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:19:07 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5341.14, RAM=4888.7MB, CPU=2.2GHz]
+12:19:07 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:19:08 | DEBUG    | distristore.network.discovery | Broadcast HELLO (466 bytes)
+12:19:10 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5735.87, RAM=5282.9MB, CPU=2.2GHz]
+12:19:10 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:19:12 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5742.55, RAM=5290.3MB, CPU=2.2GHz]
+12:19:12 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:56608 - "GET /manifest/267ea908d8c87ae3dfb22ceab2b9105e6e6bba82462a88fdb906cf56fd3a63c1 HTTP/1.1" 200 OK
+12:19:13 | DEBUG    | distristore.network.discovery | Broadcast HELLO (466 bytes)
+12:19:15 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5648.92, RAM=5270.6MB, CPU=1.47GHz]
+12:19:15 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:19:17 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5733.63, RAM=5281.5MB, CPU=2.2GHz]
+12:19:17 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:19:18 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+12:19:20 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5741.3, RAM=5289.2MB, CPU=2.2GHz]
+12:19:20 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:19:22 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5667.04, RAM=5288.5MB, CPU=1.47GHz]
+12:19:22 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:19:23 | DEBUG    | distristore.network.discovery | Broadcast HELLO (462 bytes)
+12:19:25 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5745.82, RAM=5292.4MB, CPU=2.2GHz]
+12:19:25 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:19:27 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5651.56, RAM=5271.5MB, CPU=1.47GHz]
+12:19:27 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:19:28 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+12:19:30 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5732.89, RAM=5280.2MB, CPU=2.2GHz]
+12:19:30 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:19:32 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5728.31, RAM=5275.7MB, CPU=2.2GHz]
+12:19:32 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:19:33 | DEBUG    | distristore.storage.local_store | Loaded chunk 9e0fc639343c... (19450 bytes)
+12:19:33 | INFO     | distristore.strategies.audit | Audit node-beta (d98fa30eeffc...) chunk 9e0fc639343c... -> pass
+12:19:33 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+12:19:35 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5735.68, RAM=5283.1MB, CPU=2.2GHz]
+12:19:35 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:19:37 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5729.83, RAM=5277.7MB, CPU=2.2GHz]
+12:19:37 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:19:38 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+12:19:40 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5730.79, RAM=5279.1MB, CPU=2.2GHz]
+12:19:40 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:19:42 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5657.87, RAM=5278.9MB, CPU=1.47GHz]
+12:19:42 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:19:43 | DEBUG    | distristore.network.discovery | Broadcast HELLO (466 bytes)
+12:19:45 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5667.57, RAM=5287.9MB, CPU=1.47GHz]
+12:19:45 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:19:47 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5654.84, RAM=5275.3MB, CPU=1.47GHz]
+12:19:47 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:19:48 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+12:19:50 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5662.76, RAM=5283.9MB, CPU=1.47GHz]
+12:19:50 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:19:52 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5700.77, RAM=5248.9MB, CPU=2.2GHz]
+12:19:52 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:19:53 | DEBUG    | distristore.network.discovery | Broadcast HELLO (462 bytes)
+12:19:55 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5538.3, RAM=5088.0MB, CPU=2.2GHz]
+12:19:55 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:19:57 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5532.36, RAM=5082.0MB, CPU=2.2GHz]
+12:19:57 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:19:58 | DEBUG    | distristore.network.discovery | Broadcast HELLO (463 bytes)
+12:20:00 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5620.21, RAM=5241.0MB, CPU=1.47GHz]
+12:20:00 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:56607 - "GET /status HTTP/1.1" 200 OK
+12:20:02 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5630.39, RAM=5251.9MB, CPU=1.47GHz]
+12:20:02 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:56607 - "GET /files HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /downloads HTTP/1.1" 200 OK
+12:20:03 | DEBUG    | distristore.storage.local_store | Loaded chunk 9e0fc639343c... (19450 bytes)
+12:20:03 | INFO     | distristore.strategies.audit | Audit node-gamma (9a9f952e7904...) chunk 9e0fc639343c... -> pass
+12:20:03 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+INFO:     127.0.0.1:56607 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58908 - "GET /files HTTP/1.1" 200 OK
+12:20:05 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5652.04, RAM=5278.0MB, CPU=1.47GHz]
+12:20:05 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:20:07 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5570.17, RAM=5124.8MB, CPU=2.2GHz]
+12:20:07 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:58908 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /files HTTP/1.1" 200 OK
+12:20:08 | DEBUG    | distristore.network.discovery | Broadcast HELLO (467 bytes)
+INFO:     127.0.0.1:64499 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58908 - "GET /downloads HTTP/1.1" 200 OK
+12:20:11 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5579.21, RAM=5131.2MB, CPU=2.2GHz]
+12:20:11 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:56607 - "GET /files HTTP/1.1" 200 OK
+12:20:12 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5510.22, RAM=5133.1MB, CPU=1.47GHz]
+12:20:12 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:20:13 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+INFO:     127.0.0.1:56607 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58908 - "GET /files HTTP/1.1" 200 OK
+12:20:15 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5589.09, RAM=5137.2MB, CPU=2.2GHz]
+12:20:15 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:58908 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /files HTTP/1.1" 200 OK
+12:20:17 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5577.26, RAM=5127.5MB, CPU=2.2GHz]
+12:20:17 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:20:18 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+INFO:     127.0.0.1:64499 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58908 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /files HTTP/1.1" 200 OK
+12:20:20 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5450.59, RAM=5080.3MB, CPU=1.47GHz]
+12:20:20 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:20:22 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5537.22, RAM=5094.2MB, CPU=2.2GHz]
+12:20:22 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:56607 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58908 - "GET /files HTTP/1.1" 200 OK
+12:20:23 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+12:20:25 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5479.75, RAM=5105.6MB, CPU=1.47GHz]
+12:20:25 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:58908 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /files HTTP/1.1" 200 OK
+12:20:27 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5394.05, RAM=5017.7MB, CPU=1.47GHz]
+12:20:27 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:20:28 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+INFO:     127.0.0.1:64499 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58908 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /files HTTP/1.1" 200 OK
+12:20:30 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5475.76, RAM=5023.5MB, CPU=2.2GHz]
+12:20:31 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:56607 - "GET /status HTTP/1.1" 200 OK
+12:20:32 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5460.23, RAM=5007.0MB, CPU=2.2GHz]
+INFO:     127.0.0.1:64499 - "GET /downloads HTTP/1.1" 200 OK
+12:20:32 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:58908 - "GET /files HTTP/1.1" 200 OK
+12:20:33 | DEBUG    | distristore.storage.local_store | Loaded chunk 9e0fc639343c... (19450 bytes)
+12:20:33 | INFO     | distristore.strategies.audit | Audit node-beta (d98fa30eeffc...) chunk 9e0fc639343c... -> pass
+12:20:33 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+INFO:     127.0.0.1:58908 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /files HTTP/1.1" 200 OK
+12:20:36 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5476.6, RAM=5099.1MB, CPU=1.47GHz]
+12:20:36 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:64499 - "GET /audit/reputation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /audit/log?limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58908 - "GET /audit/reputation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /audit/log?limit=50 HTTP/1.1" 200 OK
+12:20:37 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5544.6, RAM=5093.8MB, CPU=2.2GHz]
+12:20:37 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:64499 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58908 - "GET /files HTTP/1.1" 200 OK
+12:20:38 | DEBUG    | distristore.network.discovery | Broadcast HELLO (463 bytes)
+INFO:     127.0.0.1:58908 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /downloads HTTP/1.1" 200 OK
+12:20:41 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5552.66, RAM=5171.9MB, CPU=1.47GHz]
+12:20:41 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:56607 - "GET /files HTTP/1.1" 200 OK
+12:20:42 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5563.15, RAM=5182.0MB, CPU=1.47GHz]
+12:20:42 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:20:43 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+INFO:     127.0.0.1:56607 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58908 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /files HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /audit/reputation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58908 - "GET /audit/log?limit=50 HTTP/1.1" 200 OK
+12:20:46 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5557.75, RAM=5178.5MB, CPU=1.47GHz]
+12:20:46 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:58908 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /files HTTP/1.1" 200 OK
+12:20:47 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5632.27, RAM=5181.0MB, CPU=2.2GHz]
+12:20:47 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:20:48 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+INFO:     127.0.0.1:64499 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58908 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /files HTTP/1.1" 200 OK
+12:20:51 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5627.25, RAM=5175.4MB, CPU=2.2GHz]
+12:20:51 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:56607 - "GET /audit/reputation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58908 - "GET /audit/log?limit=50 HTTP/1.1" 200 OK
+12:20:52 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5689.71, RAM=5238.1MB, CPU=2.2GHz]
+12:20:52 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:58908 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /files HTTP/1.1" 200 OK
+12:20:53 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+INFO:     127.0.0.1:56607 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58908 - "GET /downloads HTTP/1.1" 200 OK
+12:20:56 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5607.35, RAM=5157.0MB, CPU=2.2GHz]
+12:20:56 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:64499 - "GET /files HTTP/1.1" 200 OK
+12:20:57 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5606.16, RAM=5155.2MB, CPU=2.2GHz]
+12:20:57 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:64499 - "GET /audit/reputation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58908 - "GET /audit/log?limit=50 HTTP/1.1" 200 OK
+12:20:58 | DEBUG    | distristore.network.discovery | Broadcast HELLO (463 bytes)
+INFO:     127.0.0.1:58908 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /files HTTP/1.1" 200 OK
+12:21:01 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5221.52, RAM=4773.7MB, CPU=2.2GHz]
+12:21:01 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:64499 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58908 - "GET /downloads HTTP/1.1" 200 OK
+12:21:02 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5193.87, RAM=4746.9MB, CPU=2.2GHz]
+12:21:02 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:56607 - "GET /files HTTP/1.1" 200 OK
+12:21:03 | DEBUG    | distristore.storage.local_store | Loaded chunk 9e0fc639343c... (19450 bytes)
+INFO:     192.168.56.1:63644 - "GET /manifest/267ea908d8c87ae3dfb22ceab2b9105e6e6bba82462a88fdb906cf56fd3a63c1 HTTP/1.1" 200 OK
+12:21:03 | INFO     | distristore.strategies.audit | Audit node-beta (d98fa30eeffc...) chunk 9e0fc639343c... -> pass
+12:21:03 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+INFO:     127.0.0.1:56607 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58908 - "GET /files HTTP/1.1" 200 OK
+12:21:06 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5190.76, RAM=4742.4MB, CPU=2.2GHz]
+12:21:06 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:58908 - "GET /audit/reputation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /audit/log?limit=50 HTTP/1.1" 200 OK
+12:21:07 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5203.77, RAM=4753.8MB, CPU=2.2GHz]
+12:21:07 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:64499 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58908 - "GET /files HTTP/1.1" 200 OK
+12:21:08 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+12:21:11 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5241.57, RAM=4790.2MB, CPU=2.2GHz]
+12:21:11 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:58908 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /files HTTP/1.1" 200 OK
+12:21:12 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5859.63, RAM=5409.5MB, CPU=2.2GHz]
+12:21:12 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:56607 - "GET /audit/reputation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /audit/log?limit=50 HTTP/1.1" 200 OK
+12:21:13 | DEBUG    | distristore.network.discovery | Broadcast HELLO (463 bytes)
+INFO:     127.0.0.1:64499 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58908 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /files HTTP/1.1" 200 OK
+12:21:16 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5734.94, RAM=5284.2MB, CPU=2.2GHz]
+12:21:16 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:56607 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /downloads HTTP/1.1" 200 OK
+12:21:17 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5578.92, RAM=5200.5MB, CPU=1.47GHz]
+12:21:17 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:58908 - "GET /files HTTP/1.1" 200 OK
+12:21:18 | DEBUG    | distristore.network.discovery | Broadcast HELLO (463 bytes)
+INFO:     127.0.0.1:56607 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58908 - "GET /audit/reputation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /audit/log?limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58908 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /files HTTP/1.1" 200 OK
+12:21:21 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5502.74, RAM=5126.2MB, CPU=1.47GHz]
+12:21:21 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:21:22 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5562.85, RAM=5112.6MB, CPU=2.2GHz]
+12:21:22 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:56607 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58908 - "GET /files HTTP/1.1" 200 OK
+12:21:23 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+12:21:26 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5609.36, RAM=5229.6MB, CPU=1.47GHz]
+12:21:26 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:58908 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /files HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /audit/reputation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /audit/log?limit=50 HTTP/1.1" 200 OK
+12:21:27 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5646.2, RAM=5193.6MB, CPU=2.2GHz]
+12:21:27 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:21:28 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+INFO:     127.0.0.1:56607 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58908 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /files HTTP/1.1" 200 OK
+12:21:31 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5332.18, RAM=4882.2MB, CPU=2.2GHz]
+12:21:31 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:64499 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /downloads HTTP/1.1" 200 OK
+12:21:32 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5260.51, RAM=4882.9MB, CPU=1.47GHz]
+12:21:32 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:58908 - "GET /files HTTP/1.1" 200 OK
+12:21:33 | DEBUG    | distristore.storage.local_store | Loaded chunk 9e0fc639343c... (19450 bytes)
+12:21:34 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+INFO:     127.0.0.1:60178 - "GET /manifest/267ea908d8c87ae3dfb22ceab2b9105e6e6bba82462a88fdb906cf56fd3a63c1 HTTP/1.1" 200 OK
+12:21:34 | INFO     | distristore.strategies.audit | Audit node-beta (d98fa30eeffc...) chunk 9e0fc639343c... -> pass
+12:21:34 | DEBUG    | distristore.storage.local_store | Loaded chunk 9e0fc639343c... (19450 bytes)
+INFO:     127.0.0.1:60180 - "GET /chunk/9e0fc639343c8c5fd773ccd5b1fc3310f7b820442a1401bdcb4dade79b07fe7e HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58908 - "GET /audit/reputation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /audit/log?limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58908 - "GET /files HTTP/1.1" 200 OK
+12:21:36 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5309.54, RAM=4857.8MB, CPU=2.2GHz]
+12:21:36 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:21:37 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5628.54, RAM=5176.9MB, CPU=2.2GHz]
+12:21:37 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:58908 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /files HTTP/1.1" 200 OK
+12:21:39 | DEBUG    | distristore.network.discovery | Broadcast HELLO (463 bytes)
+12:21:41 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5583.22, RAM=5202.2MB, CPU=1.47GHz]
+12:21:41 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:58908 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64499 - "GET /audit/reputation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /audit/log?limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60167 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56280 - "GET /files HTTP/1.1" 200 OK
+12:21:42 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5573.94, RAM=5193.5MB, CPU=1.47GHz]
+12:21:42 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:21:44 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+INFO:     127.0.0.1:56280 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60167 - "GET /files HTTP/1.1" 200 OK
+12:21:46 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5688.87, RAM=5236.6MB, CPU=2.2GHz]
+12:21:46 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:60167 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56280 - "GET /downloads HTTP/1.1" 200 OK
+12:21:47 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5680.93, RAM=5228.3MB, CPU=2.2GHz]
+12:21:47 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:56607 - "GET /files HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /audit/reputation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56280 - "GET /audit/log?limit=50 HTTP/1.1" 200 OK
+12:21:49 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+INFO:     127.0.0.1:56280 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60167 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /files HTTP/1.1" 200 OK
+12:21:51 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5705.85, RAM=5253.5MB, CPU=2.2GHz]
+12:21:51 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:21:52 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5732.87, RAM=5280.1MB, CPU=2.2GHz]
+12:21:52 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:56607 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56280 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60167 - "GET /files HTTP/1.1" 200 OK
+12:21:54 | DEBUG    | distristore.network.discovery | Broadcast HELLO (463 bytes)
+INFO:     127.0.0.1:56280 - "GET /audit/log?limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60167 - "GET /audit/reputation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60167 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56280 - "GET /files HTTP/1.1" 200 OK
+12:21:56 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5753.65, RAM=5301.0MB, CPU=2.2GHz]
+12:21:56 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:21:57 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5765.48, RAM=5313.7MB, CPU=2.2GHz]
+12:21:57 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:56280 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60167 - "GET /downloads HTTP/1.1" 200 OK
+12:21:59 | DEBUG    | distristore.network.discovery | Broadcast HELLO (465 bytes)
+INFO:     127.0.0.1:56607 - "GET /files HTTP/1.1" 200 OK
+12:22:01 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5930.93, RAM=5479.5MB, CPU=2.2GHz]
+12:22:01 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:56607 - "GET /audit/reputation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60167 - "GET /audit/log?limit=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60167 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56280 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /files HTTP/1.1" 200 OK
+12:22:02 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5930.37, RAM=5478.8MB, CPU=2.2GHz]
+12:22:02 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:22:04 | DEBUG    | distristore.storage.local_store | Loaded chunk 9e0fc639343c... (19450 bytes)
+12:22:04 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+12:22:04 | INFO     | distristore.strategies.audit | Audit node-gamma (9a9f952e7904...) chunk 9e0fc639343c... -> pass
+INFO:     127.0.0.1:56607 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60167 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56280 - "GET /files HTTP/1.1" 200 OK
+12:22:06 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5904.99, RAM=5452.6MB, CPU=2.2GHz]
+12:22:06 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:22:07 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5790.31, RAM=5410.6MB, CPU=1.47GHz]
+12:22:07 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:56280 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60167 - "GET /files HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60167 - "GET /audit/reputation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /audit/log?limit=50 HTTP/1.1" 200 OK
+12:22:09 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+INFO:     127.0.0.1:56607 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56280 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60167 - "GET /files HTTP/1.1" 200 OK
+12:22:11 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5706.98, RAM=5327.8MB, CPU=1.47GHz]
+12:22:11 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+12:22:12 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5833.06, RAM=5380.7MB, CPU=2.2GHz]
+12:22:12 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:60167 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56280 - "GET /files HTTP/1.1" 200 OK
+12:22:14 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+INFO:     127.0.0.1:56280 - "GET /audit/reputation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /audit/log?limit=50 HTTP/1.1" 200 OK
+12:22:16 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5828.81, RAM=5376.0MB, CPU=2.2GHz]
+12:22:16 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:56607 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60167 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56280 - "GET /files HTTP/1.1" 200 OK
+12:22:17 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5736.5, RAM=5357.5MB, CPU=1.47GHz]
+12:22:17 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+12:22:19 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
+INFO:     127.0.0.1:56280 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60167 - "GET /files HTTP/1.1" 200 OK
+12:22:21 | DEBUG    | distristore.network.discovery | HELLO from node-gamma (9a9f952e7904...) at 192.168.56.1 [health=5824.3, RAM=5448.5MB, CPU=1.47GHz]
+12:22:21 | DEBUG    | distristore.node.state       | Updated peer 9a9f952e7904... (192.168.56.1)
+INFO:     127.0.0.1:60167 - "GET /audit/reputation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56607 - "GET /audit/log?limit=50 HTTP/1.1" 200 OK
+12:22:22 | DEBUG    | distristore.network.discovery | HELLO from node-beta (d98fa30eeffc...) at 192.168.56.1 [health=5902.71, RAM=5453.6MB, CPU=2.2GHz]
+12:22:22 | DEBUG    | distristore.node.state       | Updated peer d98fa30eeffc... (192.168.56.1)
+INFO:     127.0.0.1:56607 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56280 - "GET /downloads HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60167 - "GET /files HTTP/1.1" 200 OK
+12:22:24 | DEBUG    | distristore.network.discovery | Broadcast HELLO (464 bytes)
