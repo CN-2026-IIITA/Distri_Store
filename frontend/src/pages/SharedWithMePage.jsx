@@ -7,7 +7,7 @@
  * recipient must know the password the sender encrypted with — same as before).
  *
  * Polls /shares every 5s.
- */
+ */ 
 
 import { useEffect, useMemo, useState } from 'react'
 import {
