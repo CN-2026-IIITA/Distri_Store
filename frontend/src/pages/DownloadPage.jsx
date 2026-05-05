@@ -3,7 +3,7 @@
  * Phase 21: Adds resumable downloads with inline progress, pause/resume controls.
  * Reads prefilled hash from URL query params (from dashboard file list clicks).
  */
-
+ 
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Download, Lock, Play, Pause, CheckCircle, AlertCircle, Loader, FileDown, ShieldCheck } from 'lucide-react'
