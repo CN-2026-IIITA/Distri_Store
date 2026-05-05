@@ -5,7 +5,7 @@
  * Shamir Secret Sharing across N peers (any M reconstruct). The recipient
  * and all holders must be in accepted chat threads.
  */
-
+ 
 import { useEffect, useMemo, useState } from 'react'
 import { Upload, Lock, FileUp, CheckCircle2, ShieldCheck, Users } from 'lucide-react'
 import { uploadFile, uploadFileThreshold, fetchChats } from '../api/client'
