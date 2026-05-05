@@ -303,14 +303,25 @@ async def _async_write_bytes(path: str, data: bytes) -> None:
 # ── Core: Streaming Chunker ───────────────────────────────────
 
 def chunk_file(file_path: str, chunk_size: int = DEFAULT_CHUNK_SIZE,
-               password: str = None) -> tuple[FileManifest, list[bytes]]:
+               password: str = None,
+               aes_key: bytes = None) -> tuple[FileManifest, list[bytes]]:
     """
     O(1) memory chunking via lazy file reads.
     Computes file hash in streaming mode, then yields chunks one at a time.
 
+    Args:
+        password: derive AES key via PBKDF2 (existing behavior).
+        aes_key: 32-byte pre-generated AES-256 key — bypasses PBKDF2.
+                 Used by Phase 25C threshold-encrypted uploads where the key
+                 is freshly random and Shamir-split across peers, not derived
+                 from a passphrase.
+
     Returns:
         (manifest, list_of_chunk_data_bytes)
     """
+    if aes_key is not None and password is not None:
+        raise ValueError("Pass either password OR aes_key, not both")
+
     path = Path(file_path)
     if not path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
@@ -333,16 +344,23 @@ def chunk_file(file_path: str, chunk_size: int = DEFAULT_CHUNK_SIZE,
     if password:
         from backend.file_engine.crypto import derive_key, encrypt_with_key
         key, salt = derive_key(password)
+    elif aes_key is not None:
+        # Phase 25C: pre-generated key path (no PBKDF2). Use random salt for
+        # the chunk header so on-disk format is unchanged; decrypt_with_key
+        # ignores the salt and uses the key directly.
+        from backend.file_engine.crypto import encrypt_with_key
+        key, salt = aes_key, os.urandom(16)
 
     # Phase 18: reusable compressor instance
     compressor = zstd.ZstdCompressor(level=3)
+    use_encryption = (password is not None) or (aes_key is not None)
 
     # Lazy generator — only 1 chunk in memory at a time during processing
     for idx, raw_bytes in _stream_chunks(file_path, chunk_size):
         # Phase 18: Compress before encrypt (O(1) per chunk)
         compressed = compressor.compress(raw_bytes)
 
-        if password:
+        if use_encryption:
             chunk_bytes = encrypt_with_key(compressed, key, salt)
             encrypted = True
         else:
@@ -361,10 +379,10 @@ def chunk_file(file_path: str, chunk_size: int = DEFAULT_CHUNK_SIZE,
     manifest.merkle_root = compute_merkle_root(chunk_hashes)
     manifest.compression = "zstd"
 
+    label = "shamir-key" if aes_key is not None else ("encrypted" if password else "plain")
     logger.info(
         f"Chunked '{path.name}' ({file_size} bytes) "
-        f"-> {len(manifest.chunks)} chunks "
-        f"({'encrypted' if password else 'plain'}, zstd) "
+        f"-> {len(manifest.chunks)} chunks ({label}, zstd) "
         f"merkle_root={manifest.merkle_root[:16]}..."
     )
     return manifest, chunk_data_list
@@ -493,10 +511,14 @@ def merge_chunks(manifest: FileManifest, chunk_data_list: list[bytes],
 
 
 def merge_chunks_to_disk(manifest: FileManifest, chunk_data_list: list[bytes],
-                         output_path: str, password: str = None) -> str:
+                         output_path: str, password: str = None,
+                         aes_key: bytes = None) -> str:
     """
     O(1) memory merger — streams decrypted chunks directly to disk.
     RAM usage stays near zero even for multi-GB files.
+
+    Pass either password (PBKDF2 derive) or aes_key (raw 32-byte key, used by
+    Phase 25C threshold-encrypted files where the key was Shamir-reconstructed).
     """
     ordered = sorted(zip(manifest.chunks, chunk_data_list), key=lambda x: x[0].index)
 
@@ -505,7 +527,9 @@ def merge_chunks_to_disk(manifest: FileManifest, chunk_data_list: list[bytes],
 
     # Derive key ONCE for all chunks
     dec_key = None
-    if password and ordered and ordered[0][0].encrypted:
+    if aes_key is not None:
+        dec_key = aes_key
+    elif password and ordered and ordered[0][0].encrypted:
         from backend.file_engine.crypto import derive_key as _dk, decrypt_with_key, SALT_SIZE as _SS
         first_salt = ordered[0][1][1:1 + _SS]
         dec_key, _ = _dk(password, first_salt)
@@ -516,11 +540,10 @@ def merge_chunks_to_disk(manifest: FileManifest, chunk_data_list: list[bytes],
 
     with open(output_path, "wb") as f:
         for info, data in ordered:
-            if info.encrypted and password:
-                if dec_key is not None:
-                    data = decrypt_with_key(data, dec_key)
-                else:
-                    data = decrypt(data, password)
+            if info.encrypted and dec_key is not None:
+                data = decrypt_with_key(data, dec_key)
+            elif info.encrypted and password:
+                data = decrypt(data, password)
             # Phase 18: decompress after decrypt
             if decompressor is not None:
                 data = decompressor.decompress(data)

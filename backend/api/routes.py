@@ -283,7 +283,21 @@ async def download_file(
     is_encrypted = any(info.encrypted for info in manifest.chunks)
     pwd = password if password else None
 
-    if is_encrypted and not pwd:
+    # Phase 25C: threshold-encrypted files reconstruct the AES key from
+    # Shamir shares collected from peers — no password needed.
+    threshold_key = None
+    if is_encrypted and manifest.key_scheme == "shamir":
+        if manifest.key_recipient and manifest.key_recipient != _node.state.node_id:
+            raise HTTPException(
+                403,
+                f"This file is threshold-encrypted for a different recipient "
+                f"({manifest.key_recipient[:12]}...)",
+            )
+        threshold_key = await _collect_and_combine_key_shares(manifest)
+        # Override pwd flow — we have the raw key now
+        pwd = None
+
+    if is_encrypted and not pwd and threshold_key is None:
         raise HTTPException(
             400,
             "This file is encrypted. Please provide the decryption password."
@@ -293,7 +307,8 @@ async def download_file(
     temp_file = os.path.join(str(temp_dir), f"temp_{uuid.uuid4().hex}.bin")
 
     try:
-        merge_chunks_to_disk(manifest, chunks, temp_file, password=pwd)
+        merge_chunks_to_disk(manifest, chunks, temp_file,
+                             password=pwd, aes_key=threshold_key)
     except ValueError as e:
         if os.path.exists(temp_file):
             os.unlink(temp_file)
@@ -943,6 +958,68 @@ CHAT_PEER_TIMEOUT = 8
 # Phase 25A: per-file download path log (in-memory, queryable by UI / receipts).
 # Maps file_hash -> {"per_chunk": {target_hash: [node_ids...]}, "unique_hops": [...]}
 _download_paths: dict = {}
+
+
+async def _collect_and_combine_key_shares(manifest) -> bytes:
+    """Phase 25C: ask each holder for its Shamir share and reconstruct the AES key.
+
+    Sends our pubkey so each holder can re-wrap the share addressed to us.
+    Stops as soon as we have m shares; raises if fewer than m holders respond.
+    """
+    if manifest.key_scheme != "shamir":
+        raise HTTPException(400, "Manifest is not threshold-encrypted")
+    if _node.state.onion_private_key is None:
+        raise HTTPException(503, "Onion identity not initialized")
+
+    from backend.network.identity import decrypt_with
+    from backend.strategies.threshold import combine_key
+
+    alive = await _node.state.get_alive_peers()
+    collected: list = []  # (share_index, share_bytes)
+    misses: list = []
+
+    body = {
+        "from_node_id": _node.state.node_id,
+        "from_pubkey": _node.state.public_key_hex,
+        "file_hash": manifest.file_hash,
+    }
+
+    for hid in manifest.key_holders:
+        if len(collected) >= manifest.key_m:
+            break
+        if hid not in alive:
+            misses.append((hid, "offline"))
+            continue
+        peer = alive[hid]
+        url = f"http://{peer.ip}:{peer.api_port}/peer/keyshare/release"
+        try:
+            async with _httpx_chat.AsyncClient(timeout=CHAT_PEER_TIMEOUT) as client:
+                r = await client.post(url, json=body)
+            if r.status_code != 200:
+                misses.append((hid, f"HTTP {r.status_code}"))
+                continue
+            payload = r.json() or {}
+            wrapped_hex = payload.get("wrapped_share", "")
+            idx = int(payload.get("share_index", 0))
+            wrapped = bytes.fromhex(wrapped_hex)
+            share_bytes = decrypt_with(_node.state.onion_private_key, wrapped)
+            collected.append((idx, share_bytes))
+        except Exception as e:
+            misses.append((hid, f"{type(e).__name__}: {e}"))
+            continue
+
+    if len(collected) < manifest.key_m:
+        detail = "; ".join(f"{h[:8]}: {why}" for h, why in misses)
+        raise HTTPException(
+            503,
+            f"Threshold not met: collected {len(collected)} of "
+            f"{manifest.key_m} required shares. {detail}",
+        )
+
+    try:
+        return combine_key(collected[:manifest.key_m])
+    except Exception as e:
+        raise HTTPException(500, f"Failed to reconstruct key from shares: {e}")
 
 
 def _record_download_path(file_hash: str, per_chunk: dict) -> None:
@@ -1687,3 +1764,307 @@ async def peer_share_notify(payload: dict):
         f"Received {len(inserted)} share(s) from {sender_name} ({sender_id[:12]}...)"
     )
     return {"status": "received", "inserted_ids": inserted}
+
+
+# ── Phase 25C: Threshold-encrypted files (Shamir Secret Sharing on the key) ─
+#
+# Sender uploads a file under a fresh random AES-256 key. The key is split
+# into N Shamir shares, distributed across N peers (gated by accepted chat
+# thread). Manifest records (m, n, holders, recipient) but never the key.
+#
+# Recipient asks each holder for their share via /peer/keyshare/release.
+# Holders verify the requester is in the allowed_requesters list, then
+# return the share re-wrapped in a SealedBox addressed to the requester.
+# Recipient unwraps M shares, reconstructs the key, decrypts the file.
+#
+# Requires:
+#   - Sender has accepted chat threads with both the recipient and all
+#     N share holders.
+#   - Holders have known X25519 pubkeys (gossiped via HELLO).
+
+import json as _json_threshold
+
+
+def _holder_payload_for_share(holder_pub_hex: str, share_payload: bytes) -> bytes:
+    """Wrap a Shamir share in a SealedBox addressed to the holder's pubkey.
+
+    Uses the same SealedBox pattern as the onion routing layers — anyone
+    can encrypt to a peer's known pubkey, but only the peer's private key
+    can unwrap it. So the share can be carried over plain HTTP without
+    leaking even to passive on-the-wire eavesdroppers.
+    """
+    from backend.network.identity import encrypt_to
+    return encrypt_to(holder_pub_hex, share_payload)
+
+
+@router.post("/upload-threshold")
+async def upload_file_threshold(
+    file: UploadFile = File(...),
+    recipient_id: str = Form(...),
+    m: int = Form(...),
+    n: int = Form(...),
+    holder_ids: str = Form(""),  # comma-separated; if empty, auto-pick from chat partners
+):
+    """Threshold-encrypt a file: AES key is Shamir-split across N peers (M required).
+
+    The recipient and all share-holders must be peers we have an accepted
+    chat thread with — same consent gate as plain shares.
+    """
+    if not _node or not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    if not (1 <= m <= n <= 254):
+        raise HTTPException(400, f"Bad (m, n) = ({m}, {n}); require 1 <= m <= n <= 254")
+    if recipient_id == _node.state.node_id:
+        raise HTTPException(400, "Cannot threshold-share with yourself")
+
+    # The recipient must be in an accepted chat thread (same gate as /share)
+    rthread = await _local_store.db.get_chat_thread(recipient_id)
+    if not rthread or rthread["status"] != "accepted":
+        raise HTTPException(403, "Recipient must be in an accepted chat thread")
+
+    # Pick share holders: explicit list OR auto-select from accepted chats
+    explicit_holders = [h.strip() for h in (holder_ids or "").split(",") if h.strip()]
+    alive = await _node.state.get_alive_peers()
+
+    if explicit_holders:
+        holders = explicit_holders
+    else:
+        # Auto-pick: any accepted-chat peer who is alive AND has a known pubkey
+        # AND is not the recipient (otherwise recipient can decrypt unilaterally)
+        chats = await _local_store.db.get_all_chat_threads()
+        candidates = [
+            c["peer_id"] for c in chats
+            if c["status"] == "accepted"
+            and c["peer_id"] != recipient_id
+            and c["peer_id"] in alive
+            and getattr(alive[c["peer_id"]], "public_key", "")
+        ]
+        if len(candidates) < n:
+            raise HTTPException(
+                409,
+                f"Need {n} accepted-chat peers (excluding recipient) with known pubkeys; "
+                f"only {len(candidates)} available. Lower n or invite more peers."
+            )
+        holders = candidates[:n]
+
+    # Validate every holder
+    if len(holders) != n:
+        raise HTTPException(400, f"Provided {len(holders)} holders but n={n}")
+    for hid in holders:
+        if hid == _node.state.node_id:
+            raise HTTPException(400, "Cannot use self as a share holder")
+        ht = await _local_store.db.get_chat_thread(hid)
+        if not ht or ht["status"] != "accepted":
+            raise HTTPException(403, f"Holder {hid[:12]}... not in accepted chat")
+        if hid not in alive:
+            raise HTTPException(503, f"Holder {hid[:12]}... is offline")
+        if not getattr(alive[hid], "public_key", ""):
+            raise HTTPException(503, f"Holder {hid[:12]}... has no known pubkey")
+
+    # Save the upload to a temp file
+    tmp_dir = tempfile.mkdtemp()
+    tmp_path = os.path.join(tmp_dir, file.filename)
+    content = await file.read()
+    with open(tmp_path, "wb") as f:
+        f.write(content)
+
+    try:
+        from backend.file_engine.chunker import chunk_file, get_optimal_chunk_size
+        from backend.strategies.threshold import generate_aes_key, split_key
+
+        # Generate the random AES-256 key + chunk + encrypt with it
+        aes_key = generate_aes_key()
+        opt_chunk_size = get_optimal_chunk_size(os.path.getsize(tmp_path))
+        manifest, chunks = chunk_file(tmp_path, chunk_size=opt_chunk_size, aes_key=aes_key)
+
+        # Persist chunks locally so the network can serve them like any other file
+        for info, data in zip(manifest.chunks, chunks):
+            _local_store.save_chunk(info.chunk_hash, data)
+            await _node.state.register_chunk(info.chunk_hash, info.chunk_hash)
+
+        # Split the key into n Shamir shares
+        shares = split_key(aes_key, m=m, n=n)
+
+        # Distribute each share to its holder. Each share is wrapped in a
+        # SealedBox addressed to the holder so on-the-wire traffic carries
+        # ciphertext only — even passive observers can't reconstruct the key.
+        delivered = []
+        for (idx, share_bytes), holder_id in zip(shares, holders):
+            holder = alive[holder_id]
+            wrapped = _holder_payload_for_share(holder.public_key, share_bytes)
+            body = {
+                **_self_ident(),
+                "file_hash": manifest.file_hash,
+                "share_index": idx,
+                "m": m,
+                "n": n,
+                "wrapped_share": wrapped.hex(),
+                "allowed_requesters": [recipient_id],
+            }
+            url = f"http://{holder.ip}:{holder.api_port}/peer/keyshare/store"
+            try:
+                async with _httpx_chat.AsyncClient(timeout=CHAT_PEER_TIMEOUT) as client:
+                    r = await client.post(url, json=body)
+                if r.status_code >= 400:
+                    raise HTTPException(502, f"Holder {holder.name} rejected share: HTTP {r.status_code}")
+            except _httpx_chat.HTTPError as e:
+                raise HTTPException(502, f"Failed to reach holder {holder.name}: {e}")
+            delivered.append({"index": idx, "holder_id": holder_id, "holder_name": holder.name})
+
+        # Mark the manifest as threshold-encrypted and persist
+        manifest.key_scheme = "shamir"
+        manifest.key_m = m
+        manifest.key_n = n
+        manifest.key_holders = holders
+        manifest.key_recipient = recipient_id
+        _local_store.save_manifest(manifest.file_hash, manifest.to_dict())
+
+        logger.info(
+            f"Threshold-uploaded '{file.filename}' -> {manifest.file_hash[:16]}..., "
+            f"{m}-of-{n} key-shares distributed to "
+            f"{[d['holder_name'] for d in delivered]}, recipient={recipient_id[:12]}..."
+        )
+        return {
+            "status": "success",
+            "file_hash": manifest.file_hash,
+            "filename": manifest.original_filename,
+            "size": manifest.original_size,
+            "chunks": len(manifest.chunks),
+            "key_scheme": "shamir",
+            "key_m": m, "key_n": n,
+            "share_holders": delivered,
+            "recipient_id": recipient_id,
+            "manifest": manifest.to_dict(),
+        }
+    finally:
+        os.unlink(tmp_path)
+        os.rmdir(tmp_dir)
+
+
+@router.post("/peer/keyshare/store")
+async def peer_keyshare_store(payload: dict):
+    """Receive and persist a Shamir share on behalf of an uploader."""
+    if not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    sender_id = (payload or {}).get("from_node_id", "").strip()
+    sender_name = (payload or {}).get("from_name", "").strip()
+    file_hash = (payload or {}).get("file_hash", "").strip()
+    share_index = (payload or {}).get("share_index", 0)
+    m = (payload or {}).get("m", 0)
+    n = (payload or {}).get("n", 0)
+    wrapped_hex = (payload or {}).get("wrapped_share", "")
+    allowed = (payload or {}).get("allowed_requesters", [])
+
+    if not all([sender_id, file_hash, wrapped_hex]) or not isinstance(allowed, list):
+        raise HTTPException(400, "missing required fields")
+    if not (1 <= m <= n <= 254):
+        raise HTTPException(400, f"Bad (m, n) = ({m}, {n})")
+
+    # Same consent gate: only accept shares from peers in an accepted chat
+    thread = await _local_store.db.get_chat_thread(sender_id)
+    if not thread or thread["status"] != "accepted":
+        raise HTTPException(403, "No accepted chat thread with sender")
+
+    try:
+        wrapped = bytes.fromhex(wrapped_hex)
+    except ValueError:
+        raise HTTPException(400, "wrapped_share must be hex")
+
+    await _local_store.db.store_key_share(
+        file_hash=file_hash, share_index=int(share_index),
+        m=int(m), n=int(n), share_blob=wrapped,
+        uploader_id=sender_id, uploader_name=sender_name,
+        allowed_requesters_json=_json_threshold.dumps(allowed),
+    )
+    logger.info(
+        f"Stored Shamir share #{share_index} for file {file_hash[:12]}... "
+        f"from {sender_name} ({sender_id[:12]}...) — releasable to {len(allowed)} peer(s)"
+    )
+    return {"status": "stored"}
+
+
+@router.post("/peer/keyshare/release")
+async def peer_keyshare_release(payload: dict):
+    """Release a Shamir share to an authorized requester.
+
+    The requester sends their pubkey so we can re-wrap the share to address
+    them (without ever exposing the cleartext share on the wire). We unwrap
+    our locally-stored SealedBox with our private key, then re-seal with
+    the requester's pubkey.
+    """
+    if not _node or not _local_store:
+        raise HTTPException(503, "Node not initialized")
+    requester_id = (payload or {}).get("from_node_id", "").strip()
+    requester_pub_hex = (payload or {}).get("from_pubkey", "").strip()
+    file_hash = (payload or {}).get("file_hash", "").strip()
+    if not all([requester_id, requester_pub_hex, file_hash]):
+        raise HTTPException(400, "from_node_id, from_pubkey, and file_hash required")
+
+    rec = await _local_store.db.get_key_share(file_hash)
+    if not rec:
+        raise HTTPException(404, f"No key share held for file {file_hash[:16]}...")
+
+    allowed = _json_threshold.loads(rec["allowed_requesters"] or "[]")
+    if requester_id not in allowed:
+        raise HTTPException(403, "Requester is not authorized to retrieve this share")
+
+    # Unwrap the SealedBox with our private key
+    if _node.state.onion_private_key is None:
+        raise HTTPException(503, "Onion identity not initialized")
+    try:
+        from backend.network.identity import decrypt_with, encrypt_to
+        share_plain = decrypt_with(_node.state.onion_private_key, bytes(rec["share_blob"]))
+    except Exception as e:
+        raise HTTPException(500, f"Failed to unwrap stored share: {e}")
+
+    # Re-wrap addressed to the requester's pubkey before sending back
+    rewrapped = encrypt_to(requester_pub_hex, share_plain)
+    return {
+        "share_index": rec["share_index"],
+        "m": rec["m"], "n": rec["n"],
+        "wrapped_share": rewrapped.hex(),
+    }
+
+
+@router.get("/threshold/{file_hash}/probe")
+async def threshold_probe(file_hash: str):
+    """Recipient-side: how many of the file's key-share holders are reachable?"""
+    if not _local_store or not _node:
+        raise HTTPException(503, "Node not initialized")
+    md = _local_store.load_manifest(file_hash)
+    if not md:
+        # Try fetching the manifest from a peer
+        peers = await _node.state.get_alive_peers()
+        for _nid, p in peers.items():
+            try:
+                async with _httpx_chat.AsyncClient(timeout=8) as client:
+                    r = await client.get(f"http://{p.ip}:{p.api_port}/manifest/{file_hash}")
+                if r.status_code == 200:
+                    md = r.json()
+                    _local_store.save_manifest(file_hash, md)
+                    break
+            except Exception:
+                continue
+    if not md:
+        raise HTTPException(404, "Manifest not found locally or on peers")
+
+    if md.get("key_scheme") != "shamir":
+        return {"is_threshold": False}
+
+    holders = md.get("key_holders") or []
+    m = int(md.get("key_m", 0))
+    alive = await _node.state.get_alive_peers()
+    online_holders = [h for h in holders if h in alive]
+    return {
+        "is_threshold": True,
+        "m": m, "n": int(md.get("key_n", 0)),
+        "holders": [
+            {"node_id": h,
+             "name": (alive[h].name if h in alive else ""),
+             "online": h in alive}
+            for h in holders
+        ],
+        "online_count": len(online_holders),
+        "decryptable_now": len(online_holders) >= m,
+        "recipient_id": md.get("key_recipient", ""),
+    }
