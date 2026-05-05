@@ -3,7 +3,7 @@
  *
  * Three sections:
  *   1. New chat: paste a peer ID and send an invite
- *   2. Pending invites (incoming): Accept / Reject buttons
+ *   2. Pending invites (incoming): Accept / Reject buttons 
  *   3. Active chats: pick a thread, see messages, send replies
  *
  * Polls /chats every 3s to pick up new invites and incoming messages.
