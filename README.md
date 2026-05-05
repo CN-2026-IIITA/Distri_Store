@@ -1353,6 +1353,14 @@ distristore/
 ```
 
 ---
+<div align="center">
+**Refreanace ** - 
+    IPFS    :- https://docs.ipfs.tech/
+    AES-256 :- https://en.wikipedia.org/wiki/Advanced_Encryption_Standard
+    Onion   :- https://en.wikipedia.org/wiki/Tor_(network)
+    Solomon Reid Erorr correction : https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction
+<div>
+
 
 <div align="center">
 
