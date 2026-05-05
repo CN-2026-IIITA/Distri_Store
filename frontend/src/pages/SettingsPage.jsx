@@ -8,7 +8,7 @@ import Card from '../components/ui/Card'
 
 export default function SettingsPage() {
   const status = useNetworkStore((s) => s.status)
-
+ 
   return (
     <div>
       <Card title="Node Information" icon={<Server size={20} />}>
