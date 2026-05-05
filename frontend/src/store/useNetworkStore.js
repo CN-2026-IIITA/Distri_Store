@@ -3,7 +3,7 @@
  *
  * Single source of truth for node status, peers, files, and performance history.
  * Auto-polls /status and /files every 3 seconds — pages don't manage their own intervals.
- */
+ */ 
 
 import { create } from 'zustand'
 import { fetchStatus, fetchFiles, fetchAllDownloads } from '../api/client'
