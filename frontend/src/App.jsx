@@ -10,7 +10,7 @@
  */
 
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom' 
 import './index.css'
 
 import useNetworkStore from './store/useNetworkStore'
