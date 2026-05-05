@@ -287,10 +287,6 @@ async def download_file(
     # Shamir shares collected from peers — no password needed.
     threshold_key = None
     if is_encrypted and manifest.key_scheme == "shamir":
-        logger.info(
-            f"[threshold-recipient-check] manifest.key_recipient="
-            f"{manifest.key_recipient[:16]!r}  self.node_id={_node.state.node_id[:16]!r}"
-        )
         if manifest.key_recipient and manifest.key_recipient != _node.state.node_id:
             raise HTTPException(
                 403,

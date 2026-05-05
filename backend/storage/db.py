@@ -281,32 +281,29 @@ class NodeDatabase:
         Race-safe ordering rule: an already-accepted thread is never regressed
         to a pending state. This prevents a stale follow-up upsert (e.g., an
         invite handler resuming AFTER an accept landed concurrently) from
-        clobbering the accepted state.
+        clobbering the accepted state. Implemented as a single conditional
+        UPSERT so the read+write happens atomically inside SQLite.
         """
         now = time.time()
-        cur = self._conn.execute(
-            "SELECT * FROM chat_threads WHERE peer_id = ?", (peer_id,)
+        # ON CONFLICT DO UPDATE only fires the regression guard via SQL;
+        # if existing.status='accepted' and new status='outgoing_pending'
+        # (or any non-accepted), keep the existing accepted row unchanged.
+        self._conn.execute(
+            """
+            INSERT INTO chat_threads
+                (peer_id, peer_name, status, invited_by_self, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(peer_id) DO UPDATE SET
+                status = CASE
+                    WHEN chat_threads.status = 'accepted' AND excluded.status != 'accepted'
+                    THEN chat_threads.status
+                    ELSE excluded.status
+                END,
+                peer_name = COALESCE(NULLIF(excluded.peer_name, ''), chat_threads.peer_name),
+                updated_at = excluded.updated_at
+            """,
+            (peer_id, peer_name, status, 1 if invited_by_self else 0, now, now),
         )
-        existing = cur.fetchone()
-
-        if existing is None:
-            self._conn.execute(
-                """INSERT INTO chat_threads
-                   (peer_id, peer_name, status, invited_by_self, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
-                (peer_id, peer_name, status, 1 if invited_by_self else 0, now, now),
-            )
-        else:
-            # Don't downgrade an already-accepted thread to pending.
-            if existing["status"] == "accepted" and status != "accepted":
-                return dict(existing)
-            self._conn.execute(
-                """UPDATE chat_threads
-                   SET status = ?, peer_name = COALESCE(NULLIF(?, ''), peer_name),
-                       updated_at = ?
-                   WHERE peer_id = ?""",
-                (status, peer_name, now, peer_id),
-            )
         self._conn.commit()
 
         cur = self._conn.execute(
