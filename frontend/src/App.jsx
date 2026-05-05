@@ -24,7 +24,8 @@ import SettingsPage from './pages/SettingsPage'
 import ChatsPage from './pages/ChatsPage'
 import SharedWithMePage from './pages/SharedWithMePage'
 import AuditsPage from './pages/AuditsPage'
-import ChatDrawer from './components/network/ChatDrawer'
+// Swarm-chat drawer UI is intentionally disabled (backend remains live).
+// import ChatDrawer from './components/network/ChatDrawer'
 
 function AppShell() {
   const startPolling = useNetworkStore((s) => s.startPolling)
@@ -52,7 +53,7 @@ function AppShell() {
           </Routes>
         </main>
       </div>
-      <ChatDrawer />
+      {/* <ChatDrawer />  // swarm-chat UI disabled */}
     </div>
   )
 }
