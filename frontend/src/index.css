@@ -2089,3 +2089,405 @@ body {
   color: var(--text-muted);
   white-space: nowrap;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   PHASE 25B: PROOF-OF-STORAGE AUDIT PAGE
+   ═══════════════════════════════════════════════════════════════ */
+
+.audits-intro {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin-bottom: 16px;
+}
+
+.audits-intro code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  background: var(--bg-subtle);
+  padding: 2px 6px;
+  border-radius: 5px;
+  color: var(--accent);
+}
+
+.audits-summary {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 16px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  flex-wrap: wrap;
+}
+
+.audit-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 70px;
+}
+
+.audit-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.audit-stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.audit-stat-spacer {
+  flex: 1;
+}
+
+.audit-log {
+  display: flex;
+  flex-direction: column;
+}
+
+.audit-log-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.audit-log-row:last-child { border-bottom: none; }
+
+.audit-log-row:hover { background: var(--bg-subtle); }
+
+.audit-log-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  min-width: 220px;
+}
+
+.audit-log-time {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.audit-log-peer {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.audit-log-detail {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  flex-wrap: wrap;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.audit-log-detail code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  background: var(--bg-subtle);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--text-secondary);
+}
+
+.audit-log-error {
+  color: #b91c1c;
+  font-weight: 500;
+  background: var(--accent-rose-soft);
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid #fecaca;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PHASE 25C: THRESHOLD-ENCRYPTED FILES (Shamir Secret Sharing)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Upload mode tabs (Password vs Threshold) */
+.upload-mode-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  width: fit-content;
+}
+
+.upload-mode-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.upload-mode-tab:hover {
+  color: var(--text-secondary);
+}
+
+.upload-mode-tab.is-active {
+  background: #ffffff;
+  color: var(--accent-purple);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Threshold config block */
+.threshold-config {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  background: var(--accent-purple-soft);
+  border: 1px solid #e5dafd;
+  border-radius: var(--radius-sm);
+}
+
+.threshold-explainer {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.threshold-explainer svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--accent-purple);
+}
+
+.threshold-mn-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.threshold-empty {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  background: #ffffff;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  padding: 10px 12px;
+  line-height: 1.5;
+}
+
+.threshold-holder-label {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.threshold-auto-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.threshold-auto-toggle input {
+  cursor: pointer;
+}
+
+.threshold-holder-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.threshold-holder-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.threshold-holder-pill:hover {
+  border-color: var(--accent-purple);
+}
+
+.threshold-holder-pill.is-selected {
+  background: #ffffff;
+  border-color: var(--accent-purple);
+  color: var(--accent-purple);
+  font-weight: 600;
+}
+
+.threshold-holder-pill.is-offline {
+  opacity: 0.55;
+}
+
+.threshold-holder-pill input {
+  cursor: pointer;
+}
+
+.threshold-holder-counter {
+  width: 100%;
+  text-align: right;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 4px 0 0;
+  border-top: 1px solid var(--border);
+}
+
+.threshold-holder-counter strong {
+  color: var(--text-primary);
+}
+
+/* Upload result: holder list line */
+.upload-holder-list {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* Per-share threshold badge in Shared-with-me */
+.threshold-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.threshold-badge.is-ready {
+  background: var(--accent-emerald-soft);
+  color: #047857;
+}
+
+.threshold-badge.is-blocked {
+  background: var(--accent-amber-soft);
+  color: #b45309;
+}
+
+/* Threshold probe card on Download page */
+.threshold-probe-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid;
+  margin-bottom: 4px;
+}
+
+.threshold-probe-card.is-ready {
+  background: var(--accent-emerald-soft);
+  border-color: #b7e7d0;
+}
+
+.threshold-probe-card.is-blocked {
+  background: var(--accent-amber-soft);
+  border-color: #f3dca0;
+}
+
+.threshold-probe-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.threshold-probe-head svg {
+  flex-shrink: 0;
+}
+
+.threshold-probe-card.is-ready .threshold-probe-head svg {
+  color: var(--accent-emerald);
+}
+
+.threshold-probe-card.is-blocked .threshold-probe-head svg {
+  color: var(--accent-amber);
+}
+
+.threshold-probe-pill {
+  margin-left: auto;
+  padding: 2px 10px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.threshold-probe-pill.is-ready {
+  background: #ffffff;
+  color: #047857;
+  border: 1px solid #b7e7d0;
+}
+
+.threshold-probe-pill.is-blocked {
+  background: #ffffff;
+  color: #b45309;
+  border: 1px solid #f3dca0;
+}
+
+.threshold-probe-holders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.threshold-holder-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 100px;
+  font-size: 11.5px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.threshold-holder-chip.is-offline {
+  opacity: 0.65;
+  text-decoration: line-through;
+  text-decoration-color: var(--text-muted);
+}

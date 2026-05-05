@@ -122,14 +122,61 @@ class NodeDatabase:
             "CREATE INDEX IF NOT EXISTS idx_share_receipts_file "
             "ON share_receipts(file_hash, received_at DESC)"
         )
+        # Phase 25B: proof-of-storage audit log — every audit we ran against a peer
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS peer_audits (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                peer_id         TEXT NOT NULL,
+                peer_name       TEXT DEFAULT '',
+                chunk_hash      TEXT NOT NULL,
+                challenged_at   REAL NOT NULL,
+                nonce           TEXT NOT NULL,
+                proof_received  TEXT DEFAULT '',
+                expected_proof  TEXT DEFAULT '',
+                result          TEXT NOT NULL,
+                error           TEXT DEFAULT ''
+            )
+        """)
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_audits_peer "
+            "ON peer_audits(peer_id, challenged_at DESC)"
+        )
+        # Phase 25C: Shamir key shares we hold on behalf of other uploaders.
+        # share_index is 1..N; share_blob is the share bytes encrypted with our
+        # X25519 SealedBox so that even disk-snapshot leakage doesn't expose
+        # the share. allowed_requesters lists peer_ids who may collect the share.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS key_shares (
+                file_hash           TEXT NOT NULL,
+                share_index         INTEGER NOT NULL,
+                m                   INTEGER NOT NULL,
+                n                   INTEGER NOT NULL,
+                share_blob          BLOB NOT NULL,
+                uploader_id         TEXT NOT NULL,
+                uploader_name       TEXT DEFAULT '',
+                allowed_requesters  TEXT NOT NULL DEFAULT '[]',
+                stored_at           REAL NOT NULL,
+                PRIMARY KEY (file_hash, share_index)
+            )
+        """)
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_keyshares_file "
+            "ON key_shares(file_hash)"
+        )
         # Phase 18: migrate existing tables that lack the compression column
         # Phase 23: migrate existing tables that lack erasure-mode columns
+        # Phase 25C: migrate existing tables that lack threshold-encryption columns
         for ddl in (
             "ALTER TABLE manifests ADD COLUMN compression TEXT DEFAULT ''",
             "ALTER TABLE manifests ADD COLUMN chunk_size INTEGER DEFAULT 262144",
             "ALTER TABLE manifests ADD COLUMN replication_mode TEXT DEFAULT 'kcopy'",
             "ALTER TABLE manifests ADD COLUMN erasure_k INTEGER DEFAULT 0",
             "ALTER TABLE manifests ADD COLUMN erasure_n INTEGER DEFAULT 0",
+            "ALTER TABLE manifests ADD COLUMN key_scheme TEXT DEFAULT ''",
+            "ALTER TABLE manifests ADD COLUMN key_m INTEGER DEFAULT 0",
+            "ALTER TABLE manifests ADD COLUMN key_n INTEGER DEFAULT 0",
+            "ALTER TABLE manifests ADD COLUMN key_holders TEXT DEFAULT '[]'",
+            "ALTER TABLE manifests ADD COLUMN key_recipient TEXT DEFAULT ''",
         ):
             try:
                 cur.execute(ddl)
@@ -141,11 +188,13 @@ class NodeDatabase:
 
     def _save_manifest_sync(self, file_hash: str, manifest_dict: dict) -> None:
         chunks_json = json.dumps(manifest_dict.get("chunks", []))
+        key_holders_json = json.dumps(manifest_dict.get("key_holders", []))
         self._conn.execute(
             """INSERT OR REPLACE INTO manifests
                (file_hash, filename, total_size, merkle_root, chunks_json,
-                compression, chunk_size, replication_mode, erasure_k, erasure_n)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                compression, chunk_size, replication_mode, erasure_k, erasure_n,
+                key_scheme, key_m, key_n, key_holders, key_recipient)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 file_hash,
                 manifest_dict.get("original_filename", ""),
@@ -157,6 +206,11 @@ class NodeDatabase:
                 manifest_dict.get("replication_mode", "kcopy"),
                 manifest_dict.get("erasure_k", 0),
                 manifest_dict.get("erasure_n", 0),
+                manifest_dict.get("key_scheme", ""),
+                manifest_dict.get("key_m", 0),
+                manifest_dict.get("key_n", 0),
+                key_holders_json,
+                manifest_dict.get("key_recipient", ""),
             ),
         )
         self._conn.commit()
@@ -175,6 +229,11 @@ class NodeDatabase:
             "replication_mode": row["replication_mode"] if "replication_mode" in keys else "kcopy",
             "erasure_k": row["erasure_k"] if "erasure_k" in keys else 0,
             "erasure_n": row["erasure_n"] if "erasure_n" in keys else 0,
+            "key_scheme": row["key_scheme"] if "key_scheme" in keys else "",
+            "key_m": row["key_m"] if "key_m" in keys else 0,
+            "key_n": row["key_n"] if "key_n" in keys else 0,
+            "key_holders": json.loads(row["key_holders"]) if "key_holders" in keys and row["key_holders"] else [],
+            "key_recipient": row["key_recipient"] if "key_recipient" in keys else "",
         }
 
     def _get_manifest_sync(self, file_hash: str) -> Optional[dict]:
@@ -217,28 +276,34 @@ class NodeDatabase:
         self, peer_id: str, status: str,
         invited_by_self: bool, peer_name: str = "",
     ) -> dict:
-        """Insert or update a chat thread row, returning the resulting row dict."""
-        now = time.time()
-        cur = self._conn.execute(
-            "SELECT * FROM chat_threads WHERE peer_id = ?", (peer_id,)
-        )
-        existing = cur.fetchone()
+        """Insert or update a chat thread row, returning the resulting row dict.
 
-        if existing is None:
-            self._conn.execute(
-                """INSERT INTO chat_threads
-                   (peer_id, peer_name, status, invited_by_self, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
-                (peer_id, peer_name, status, 1 if invited_by_self else 0, now, now),
-            )
-        else:
-            self._conn.execute(
-                """UPDATE chat_threads
-                   SET status = ?, peer_name = COALESCE(NULLIF(?, ''), peer_name),
-                       updated_at = ?
-                   WHERE peer_id = ?""",
-                (status, peer_name, now, peer_id),
-            )
+        Race-safe ordering rule: an already-accepted thread is never regressed
+        to a pending state. This prevents a stale follow-up upsert (e.g., an
+        invite handler resuming AFTER an accept landed concurrently) from
+        clobbering the accepted state. Implemented as a single conditional
+        UPSERT so the read+write happens atomically inside SQLite.
+        """
+        now = time.time()
+        # ON CONFLICT DO UPDATE only fires the regression guard via SQL;
+        # if existing.status='accepted' and new status='outgoing_pending'
+        # (or any non-accepted), keep the existing accepted row unchanged.
+        self._conn.execute(
+            """
+            INSERT INTO chat_threads
+                (peer_id, peer_name, status, invited_by_self, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(peer_id) DO UPDATE SET
+                status = CASE
+                    WHEN chat_threads.status = 'accepted' AND excluded.status != 'accepted'
+                    THEN chat_threads.status
+                    ELSE excluded.status
+                END,
+                peer_name = COALESCE(NULLIF(excluded.peer_name, ''), chat_threads.peer_name),
+                updated_at = excluded.updated_at
+            """,
+            (peer_id, peer_name, status, 1 if invited_by_self else 0, now, now),
+        )
         self._conn.commit()
 
         cur = self._conn.execute(
@@ -373,6 +438,97 @@ class NodeDatabase:
         )
         return [dict(row) for row in cur.fetchall()]
 
+    # ── Phase 25B: proof-of-storage audit log ──────────────────────
+
+    def _insert_audit_sync(self, peer_id: str, peer_name: str, chunk_hash: str,
+                            nonce: str, proof_received: str, expected_proof: str,
+                            result: str, error: str = "") -> dict:
+        now = time.time()
+        cur = self._conn.execute(
+            """INSERT INTO peer_audits
+               (peer_id, peer_name, chunk_hash, challenged_at, nonce,
+                proof_received, expected_proof, result, error)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (peer_id, peer_name, chunk_hash, now, nonce,
+             proof_received, expected_proof, result, error),
+        )
+        self._conn.commit()
+        return {
+            "id": cur.lastrowid,
+            "peer_id": peer_id,
+            "peer_name": peer_name,
+            "chunk_hash": chunk_hash,
+            "challenged_at": now,
+            "nonce": nonce,
+            "proof_received": proof_received,
+            "expected_proof": expected_proof,
+            "result": result,
+            "error": error,
+        }
+
+    def _get_audit_log_sync(self, limit: int = 200, peer_id: str = "") -> list[dict]:
+        if peer_id:
+            cur = self._conn.execute(
+                """SELECT * FROM peer_audits WHERE peer_id = ?
+                   ORDER BY challenged_at DESC LIMIT ?""",
+                (peer_id, limit),
+            )
+        else:
+            cur = self._conn.execute(
+                "SELECT * FROM peer_audits ORDER BY challenged_at DESC LIMIT ?",
+                (limit,),
+            )
+        return [dict(row) for row in cur.fetchall()]
+
+    def _get_audit_reputation_sync(self) -> list[dict]:
+        cur = self._conn.execute(
+            """SELECT peer_id,
+                      MAX(peer_name) AS peer_name,
+                      SUM(CASE WHEN result = 'pass' THEN 1 ELSE 0 END) AS passed,
+                      SUM(CASE WHEN result = 'fail' THEN 1 ELSE 0 END) AS failed,
+                      SUM(CASE WHEN result NOT IN ('pass','fail') THEN 1 ELSE 0 END) AS errors,
+                      MAX(challenged_at) AS last_audit_at,
+                      COUNT(*) AS total
+               FROM peer_audits
+               GROUP BY peer_id
+               ORDER BY last_audit_at DESC"""
+        )
+        return [dict(row) for row in cur.fetchall()]
+
+    # ── Phase 25C: Shamir key-share storage (we hold shares for others) ──
+
+    def _store_key_share_sync(self, file_hash: str, share_index: int,
+                               m: int, n: int, share_blob: bytes,
+                               uploader_id: str, uploader_name: str,
+                               allowed_requesters_json: str) -> None:
+        self._conn.execute(
+            """INSERT OR REPLACE INTO key_shares
+               (file_hash, share_index, m, n, share_blob, uploader_id,
+                uploader_name, allowed_requesters, stored_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (file_hash, share_index, m, n, share_blob, uploader_id,
+             uploader_name, allowed_requesters_json, time.time()),
+        )
+        self._conn.commit()
+
+    def _get_key_share_sync(self, file_hash: str) -> Optional[dict]:
+        cur = self._conn.execute(
+            "SELECT * FROM key_shares WHERE file_hash = ?", (file_hash,)
+        )
+        row = cur.fetchone()
+        return dict(row) if row else None
+
+    def _list_key_shares_sync(self) -> list[dict]:
+        cur = self._conn.execute("SELECT * FROM key_shares ORDER BY stored_at DESC")
+        return [dict(row) for row in cur.fetchall()]
+
+    def _delete_key_share_sync(self, file_hash: str) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM key_shares WHERE file_hash = ?", (file_hash,)
+        )
+        self._conn.commit()
+        return cur.rowcount > 0
+
     # ── Async wrappers ─────────────────────────────────────────────
 
     async def save_manifest(self, file_hash: str, manifest_dict: dict) -> None:
@@ -443,6 +599,41 @@ class NodeDatabase:
 
     async def get_all_share_receipts(self) -> list[dict]:
         return await asyncio.to_thread(self._get_all_share_receipts_sync)
+
+    # Phase 25B: audit-log async wrappers
+    async def insert_audit(self, peer_id: str, peer_name: str, chunk_hash: str,
+                            nonce: str, proof_received: str, expected_proof: str,
+                            result: str, error: str = "") -> dict:
+        return await asyncio.to_thread(
+            self._insert_audit_sync,
+            peer_id, peer_name, chunk_hash, nonce,
+            proof_received, expected_proof, result, error,
+        )
+
+    async def get_audit_log(self, limit: int = 200, peer_id: str = "") -> list[dict]:
+        return await asyncio.to_thread(self._get_audit_log_sync, limit, peer_id)
+
+    async def get_audit_reputation(self) -> list[dict]:
+        return await asyncio.to_thread(self._get_audit_reputation_sync)
+
+    # Phase 25C: key-share async wrappers
+    async def store_key_share(self, file_hash: str, share_index: int,
+                               m: int, n: int, share_blob: bytes,
+                               uploader_id: str, uploader_name: str,
+                               allowed_requesters_json: str) -> None:
+        await asyncio.to_thread(
+            self._store_key_share_sync, file_hash, share_index, m, n,
+            share_blob, uploader_id, uploader_name, allowed_requesters_json,
+        )
+
+    async def get_key_share(self, file_hash: str) -> Optional[dict]:
+        return await asyncio.to_thread(self._get_key_share_sync, file_hash)
+
+    async def list_key_shares(self) -> list[dict]:
+        return await asyncio.to_thread(self._list_key_shares_sync)
+
+    async def delete_key_share(self, file_hash: str) -> bool:
+        return await asyncio.to_thread(self._delete_key_share_sync, file_hash)
 
     def close(self) -> None:
         self._conn.close()

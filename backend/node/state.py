@@ -118,6 +118,11 @@ class NodeState:
                     existing.name = peer.name
                 if peer.api_port:
                     existing.api_port = peer.api_port
+                # Phase 25A: pubkey may arrive on a later HELLO if peer was
+                # discovered before its identity was installed. Always update
+                # if the incoming HELLO carries one.
+                if peer.public_key:
+                    existing.public_key = peer.public_key
                 logger.debug(f"Updated peer {peer.node_id[:12]}... ({peer.ip})")
                 # Persist to SQLite
                 if self._db:

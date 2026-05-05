@@ -12,10 +12,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Inbox, Trash2, ArrowDownToLine, KeyRound, FileText, Check, Send, Route,
+  ShieldCheck,
 } from 'lucide-react'
 import {
   fetchShares, deleteShare, downloadFile, triggerBlobDownload,
-  fetchSharePath, ackShareDelivery,
+  fetchSharePath, ackShareDelivery, fetchThresholdProbe,
 } from '../api/client'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
@@ -46,6 +47,8 @@ export default function SharedWithMePage() {
   const [paths, setPaths] = useState({})  // share_id -> {self_node_id, self_name, path: [...]}
   const [acked, setAcked] = useState({})  // share_id -> bool
   const [acking, setAcking] = useState({})
+  // Phase 25C: per-share threshold probe (file_hash -> probe response)
+  const [probes, setProbes] = useState({})
 
   const loadPathFor = async (share) => {
     try {
@@ -65,11 +68,43 @@ export default function SharedWithMePage() {
     }
   }
 
+  // Phase 25C: probe each share's file_hash to learn if it's threshold-encrypted
+  // and how many holders are currently reachable.
+  const reloadProbes = async (currentShares) => {
+    const seen = new Set()
+    const tasks = []
+    for (const s of currentShares) {
+      if (seen.has(s.file_hash)) continue
+      seen.add(s.file_hash)
+      tasks.push(
+        fetchThresholdProbe(s.file_hash)
+          .then((p) => [s.file_hash, p])
+          .catch(() => [s.file_hash, null]),
+      )
+    }
+    const results = await Promise.all(tasks)
+    setProbes((prev) => {
+      const next = { ...prev }
+      for (const [hash, p] of results) {
+        if (p) next[hash] = p
+      }
+      return next
+    })
+  }
+
   useEffect(() => {
     reload()
     const id = setInterval(reload, POLL_MS)
     return () => clearInterval(id)
   }, [])
+
+  // Re-probe whenever shares change, then refresh online-counts every 5s
+  useEffect(() => {
+    if (shares.length === 0) return
+    reloadProbes(shares)
+    const id = setInterval(() => reloadProbes(shares), 5000)
+    return () => clearInterval(id)
+  }, [shares])
 
   // Group by sender for cleaner display
   const grouped = useMemo(() => {
@@ -90,10 +125,32 @@ export default function SharedWithMePage() {
   }, [shares])
 
   const handleDownloadClick = (share) => {
-    // Always prompt for password since files in this project are encrypted by default
+    const probe = probes[share.file_hash]
+    if (probe?.is_threshold) {
+      // Threshold-encrypted: the node reconstructs the AES key from M-of-N
+      // holders — no password needed. Stream straight into the download flow.
+      handleThresholdDownload(share)
+      return
+    }
+    // Regular password-encrypted file
     setPasswordPrompt(share)
     setPasswordValue('')
     setError('')
+  }
+
+  const handleThresholdDownload = async (share) => {
+    setDownloading((d) => ({ ...d, [share.id]: true }))
+    setError('')
+    try {
+      const { blob, filename } = await downloadFile(share.file_hash, '')
+      triggerBlobDownload(blob, filename || share.filename)
+      loadPathFor(share)
+      reload()
+    } catch (err) {
+      alert(`Threshold download failed: ${err.message || 'unknown error'}`)
+    } finally {
+      setDownloading((d) => ({ ...d, [share.id]: false }))
+    }
   }
 
   const handleDownloadConfirm = async () => {
@@ -165,6 +222,10 @@ export default function SharedWithMePage() {
                 <div className="file-list">
                   {g.items.map((s) => {
                     const pathRec = paths[s.id]
+                    const probe = probes[s.file_hash]
+                    const isThreshold = probe?.is_threshold
+                    const decryptable = isThreshold && probe.decryptable_now
+                    const downloadDisabled = isThreshold && !decryptable
                     return (
                       <div key={s.id} className="shared-row">
                         <div className="file-item">
@@ -176,6 +237,17 @@ export default function SharedWithMePage() {
                                 {s.downloaded && (
                                   <span className="shared-downloaded-badge">
                                     <Check size={11} /> downloaded
+                                  </span>
+                                )}
+                                {isThreshold && (
+                                  <span
+                                    className={`threshold-badge ${decryptable ? 'is-ready' : 'is-blocked'}`}
+                                    title={decryptable
+                                      ? `${probe.online_count} of ${probe.n} holders online — quorum met`
+                                      : `Need ${probe.m} holders online; ${probe.online_count} of ${probe.n} reachable`}
+                                  >
+                                    <ShieldCheck size={11} />
+                                    {probe.m}-of-{probe.n} threshold · {probe.online_count}/{probe.n} online
                                   </span>
                                 )}
                               </div>
@@ -191,8 +263,12 @@ export default function SharedWithMePage() {
                               <button
                                 className="btn-copy btn-dl"
                                 onClick={() => handleDownloadClick(s)}
-                                disabled={downloading[s.id]}
-                                title="Download via onion route"
+                                disabled={downloading[s.id] || downloadDisabled}
+                                title={
+                                  downloadDisabled
+                                    ? `Quorum not met — need ${probe.m} of ${probe.n} holders online`
+                                    : (isThreshold ? 'Decrypt via threshold quorum + onion route' : 'Download via onion route')
+                                }
                               >
                                 <ArrowDownToLine size={14} />
                                 {downloading[s.id] ? 'Downloading...' : 'Download'}

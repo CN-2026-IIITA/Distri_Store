@@ -248,4 +248,50 @@ export async function fetchShareReceipts() {
   return data.receipts || []
 }
 
+// ── Phase 25C: Threshold-Encrypted Files (Shamir Secret Sharing) ──
+
+export async function uploadFileThreshold(file, recipientId, m, n, holderIds = []) {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('recipient_id', recipientId)
+  formData.append('m', String(m))
+  formData.append('n', String(n))
+  if (holderIds && holderIds.length) {
+    formData.append('holder_ids', holderIds.join(','))
+  }
+  const { data } = await api.post('/upload-threshold', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000,
+  })
+  return data
+}
+
+export async function fetchThresholdProbe(fileHash) {
+  const { data } = await api.get(`/threshold/${fileHash}/probe`)
+  return data
+}
+
+// ── Phase 25B: Proof-of-Storage Audits ────────────────────────
+
+export async function fetchAuditReputation() {
+  const { data } = await api.get('/audit/reputation')
+  return data.reputation || []
+}
+
+export async function fetchAuditLog(limit = 100, peerId = '') {
+  const params = peerId ? { limit, peer_id: peerId } : { limit }
+  const { data } = await api.get('/audit/log', { params })
+  return data.log || []
+}
+
+export async function runAuditAgainst(peerId) {
+  const { data } = await api.post(`/audit/run/${peerId}`)
+  return data.audit
+}
+
+export async function runAuditRandom() {
+  const { data } = await api.post('/audit/run')
+  return data.audit
+}
+
 export default api

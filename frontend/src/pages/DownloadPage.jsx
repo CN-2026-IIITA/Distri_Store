@@ -6,11 +6,11 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Download, Lock, Play, Pause, CheckCircle, AlertCircle, Loader, FileDown } from 'lucide-react'
+import { Download, Lock, Play, Pause, CheckCircle, AlertCircle, Loader, FileDown, ShieldCheck } from 'lucide-react'
 import {
   downloadFile, triggerBlobDownload,
   startResumableDownload, pauseDownload, resumeDownload,
-  downloadCompletedFile,
+  downloadCompletedFile, fetchThresholdProbe,
 } from '../api/client'
 import useNetworkStore from '../store/useNetworkStore'
 import Card from '../components/ui/Card'
@@ -43,6 +43,29 @@ export default function DownloadPage() {
   const [starting, setStarting] = useState(false)
   const [fetchingFile, setFetchingFile] = useState(false)
   const activeDownloads = useNetworkStore((s) => s.activeDownloads)
+
+  // Phase 25C: threshold probe — populated when the entered hash is a
+  // threshold-encrypted file. We poll while a hash is entered.
+  const [probe, setProbe] = useState(null)
+
+  useEffect(() => {
+    if (!hash) { setProbe(null); return }
+    let alive = true
+    const reload = async () => {
+      try {
+        const p = await fetchThresholdProbe(hash)
+        if (alive) setProbe(p)
+      } catch {
+        if (alive) setProbe(null)
+      }
+    }
+    reload()
+    const id = setInterval(reload, 5000)
+    return () => { alive = false; clearInterval(id) }
+  }, [hash])
+
+  const isThreshold = probe?.is_threshold
+  const thresholdReady = isThreshold && probe.decryptable_now
 
   // Track which hashes we've already auto-downloaded to avoid duplicates
   const autoDownloaded = useRef(new Set())
@@ -153,13 +176,43 @@ export default function DownloadPage() {
           </div>
           <div className="input-group">
             <label><Lock size={14} /> Decryption Password (if encrypted)</label>
-            <input type="password" className="input-field" placeholder="Leave empty if not encrypted" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <input
+              type="password"
+              className="input-field"
+              placeholder={isThreshold ? 'Not needed — key is reconstructed from holders' : 'Leave empty if not encrypted'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={isThreshold}
+            />
           </div>
+
+          {isThreshold && (
+            <div className={`threshold-probe-card ${thresholdReady ? 'is-ready' : 'is-blocked'}`}>
+              <div className="threshold-probe-head">
+                <ShieldCheck size={16} />
+                <span>
+                  Threshold-encrypted file · need <strong>{probe.m}</strong> of <strong>{probe.n}</strong> holders
+                </span>
+                <span className={`threshold-probe-pill ${thresholdReady ? 'is-ready' : 'is-blocked'}`}>
+                  {thresholdReady ? 'Decryptable now' : `Quorum not met (${probe.online_count}/${probe.n} online)`}
+                </span>
+              </div>
+              <div className="threshold-probe-holders">
+                {(probe.holders || []).map((h) => (
+                  <span key={h.node_id} className={`threshold-holder-chip ${h.online ? 'is-online' : 'is-offline'}`}>
+                    <span className={`chat-online-dot ${h.online ? 'is-online' : ''}`} />
+                    {h.name || h.node_id.slice(0, 12)}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="download-actions">
-            <Button variant="success" loading={downloading} disabled={!hash} onClick={handleDownload}>
+            <Button variant="success" loading={downloading} disabled={!hash || (isThreshold && !thresholdReady)} onClick={handleDownload}>
               Instant download
             </Button>
-            <Button variant="primary" loading={starting} disabled={!hash} onClick={handleStartResumable}>
+            <Button variant="primary" loading={starting} disabled={!hash || (isThreshold && !thresholdReady)} onClick={handleStartResumable}>
               Resumable download
             </Button>
             <Button variant="primary" disabled={!hash} onClick={handlePreview}>

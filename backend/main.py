@@ -78,9 +78,23 @@ async def lifespan(app):
     from backend.network.identity import load_or_create_keypair
     _priv, _pub = load_or_create_keypair(_store.db._conn)
     _node.state.set_identity(_priv, _pub.encode().hex())
+    # Phase 25B: launch the background proof-of-storage auditor loop
+    import httpx as _httpx_for_audit
+    from backend.strategies.audit import auditor_loop
+    _audit_task = asyncio.create_task(
+        auditor_loop(
+            _node.state, _routing, _store, _store.db,
+            _httpx_for_audit.AsyncClient, interval_seconds=30,
+        )
+    )
     await _node.start(_store)
     logger.info("DistriStore node started alongside API server")
     yield
+    # Phase 25B: stop the auditor loop on shutdown
+    try:
+        _audit_task.cancel()
+    except Exception:
+        pass
     await _node.stop()
     logger.info("DistriStore node stopped")
 
